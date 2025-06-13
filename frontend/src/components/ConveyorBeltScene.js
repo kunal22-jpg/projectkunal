@@ -240,63 +240,139 @@ const ElectricSparks = ({ position, phase = 1 }) => {
   );
 };
 
-// Energy screen component
+// Enhanced energy screen component
 const EnergyScreen = ({ onClick, onHover, isHovered }) => {
   const screenRef = useRef();
+  const effectsRef = useRef();
   const [sparkles, setSparkles] = useState([]);
+  const [energyWaves, setEnergyWaves] = useState([]);
   
   useEffect(() => {
     // Generate sparkle positions
-    const newSparkles = Array.from({ length: 20 }, (_, i) => ({
+    const newSparkles = Array.from({ length: 30 }, (_, i) => ({
       id: i,
-      x: (Math.random() - 0.5) * 4,
-      y: (Math.random() - 0.5) * 6,
-      z: Math.random() * 0.1,
+      x: (Math.random() - 0.5) * 3.5,
+      y: (Math.random() - 0.5) * 5.5,
+      z: (Math.random() - 0.5) * 0.2,
+      speed: 0.5 + Math.random() * 1.5,
+      size: 0.01 + Math.random() * 0.02
     }));
     setSparkles(newSparkles);
+    
+    // Generate energy wave positions
+    const newWaves = Array.from({ length: 6 }, (_, i) => ({
+      id: i,
+      y: -2.5 + i * 1,
+      delay: i * 0.3
+    }));
+    setEnergyWaves(newWaves);
   }, []);
   
   useFrame((state) => {
     if (screenRef.current) {
-      // Subtle wave animation
-      screenRef.current.material.opacity = 0.3 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+      // Dynamic opacity with breathing effect
+      const breathe = Math.sin(state.clock.elapsedTime * 1.5) * 0.1;
+      screenRef.current.material.transmission = 0.85 + breathe;
+      screenRef.current.material.thickness = 0.1 + breathe * 0.05;
+    }
+    
+    if (effectsRef.current) {
+      // Rotate the entire effects group for dynamic movement
+      effectsRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
     }
   });
 
   return (
     <group position={[0, 0, 0]} onClick={onClick} onPointerEnter={onHover} onPointerLeave={onHover}>
-      {/* Main energy screen */}
+      {/* Main energy screen with enhanced materials */}
       <Plane ref={screenRef} args={[4, 6]} rotation={[0, 0, 0]}>
         <MeshTransmissionMaterial
-          color="#0066ff"
+          color="#0088ff"
           thickness={0.1}
           transmission={0.9}
-          roughness={0.1}
+          roughness={0.05}
           clearcoat={1}
-          clearcoatRoughness={0.1}
+          clearcoatRoughness={0.05}
+          ior={1.4}
           transparent
-          opacity={0.4}
+          opacity={0.6}
+          distortion={0.1}
+          distortionScale={0.5}
+          temporalDistortion={0.1}
         />
       </Plane>
       
-      {/* Energy sparkles */}
-      {sparkles.map((sparkle) => (
-        <Sphere key={sparkle.id} args={[0.02]} position={[sparkle.x, sparkle.y, sparkle.z]}>
-          <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+      {/* Enhanced visual effects */}
+      <group ref={effectsRef}>
+        {/* Animated energy sparkles */}
+        {sparkles.map((sparkle) => (
+          <Sphere key={sparkle.id} args={[sparkle.size]} position={[sparkle.x, sparkle.y, sparkle.z]}>
+            <meshBasicMaterial 
+              color="#00ddff" 
+              transparent 
+              opacity={0.9}
+              emissive="#00ddff"
+              emissiveIntensity={1.2}
+            />
+          </Sphere>
+        ))}
+        
+        {/* Flowing energy waves */}
+        {energyWaves.map((wave) => (
+          <Plane 
+            key={wave.id} 
+            args={[3.8, 0.1]} 
+            position={[0, wave.y, 0.05]}
+          >
+            <meshBasicMaterial 
+              color="#4dd2ff" 
+              transparent 
+              opacity={0.4}
+              emissive="#4dd2ff"
+              emissiveIntensity={0.8}
+            />
+          </Plane>
+        ))}
+        
+        {/* Central energy core */}
+        <Sphere args={[0.3]} position={[0, 0, 0]}>
+          <meshBasicMaterial 
+            color="#ffffff" 
+            transparent 
+            opacity={0.3}
+            emissive="#00aaff"
+            emissiveIntensity={1.5}
+          />
         </Sphere>
-      ))}
+      </group>
       
-      {/* Hover indicator */}
+      {/* Interactive hover indicator */}
       {isHovered && (
-        <Text
-          position={[0, 3.5, 0.1]}
-          fontSize={0.3}
-          color="#00ffff"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Click to Chat with AI
-        </Text>
+        <group>
+          <Text
+            position={[0, 3.8, 0.2]}
+            fontSize={0.35}
+            color="#00ffff"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.02}
+            outlineColor="#000000"
+          >
+            🤖 Click to Chat with AI
+          </Text>
+          
+          {/* Pulsing ring around screen */}
+          <mesh rotation={[0, 0, 0]} position={[0, 0, 0.1]}>
+            <ringGeometry args={[2.2, 2.4, 32]} />
+            <meshBasicMaterial 
+              color="#00ffff" 
+              transparent 
+              opacity={0.6}
+              emissive="#00ffff"
+              emissiveIntensity={0.8}
+            />
+          </mesh>
+        </group>
       )}
     </group>
   );
