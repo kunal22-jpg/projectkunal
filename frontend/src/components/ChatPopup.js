@@ -210,36 +210,41 @@ const ChatPopup = ({ onClose }) => {
 
           {/* Botpress Chat Widget */}
           {showIframe && (
-            <iframe
-              ref={iframeRef}
-              src={`https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/13/11/20250613110123-M8F9HM2R.json&hideHeader=true&hideBranding=true`}
-              width="100%"
-              height="100%"
-              style={{ 
-                border: 'none',
-                borderRadius: '0 0 1rem 1rem',
-                backgroundColor: 'transparent',
-                opacity: isLoading ? 0 : 1,
-                transition: 'opacity 0.5s ease-in-out'
-              }}
-              title="TRACITY AI Assistant"
-              allow="microphone; camera"
-              onLoad={() => {
-                // Inject CSS to hide branding
-                try {
-                  const iframe = iframeRef.current;
-                  if (iframe && iframe.contentDocument) {
-                    const head = iframe.contentDocument.head;
-                    const style = iframe.contentDocument.createElement('style');
-                    style.innerHTML = hideBotpressBranding;
-                    head.appendChild(style);
-                  }
-                } catch (error) {
-                  // Cross-origin restrictions might prevent this
-                  console.log('Cannot inject styles due to CORS restrictions');
+            <div className="relative w-full h-full">
+              <iframe
+                ref={iframeRef}
+                src={`https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/13/11/20250613110123-M8F9HM2R.json`}
+                width="100%"
+                height="100%"
+                style={{ 
+                  border: 'none',
+                  borderRadius: '0 0 1rem 1rem',
+                  backgroundColor: 'transparent',
+                  opacity: isLoading ? 0 : 1,
+                  transition: 'opacity 0.5s ease-in-out'
+                }}
+                title="TRACITY AI Assistant"
+                allow="microphone; camera"
+              />
+              
+              {/* CSS Override for Botpress Branding */}
+              <style jsx>{`
+                iframe {
+                  position: relative;
                 }
-              }}
-            />
+                iframe::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  height: 40px;
+                  background: linear-gradient(to bottom, transparent, #0f172a);
+                  pointer-events: none;
+                  z-index: 10;
+                }
+              `}</style>
+            </div>
           )}
         </div>
       </motion.div>
