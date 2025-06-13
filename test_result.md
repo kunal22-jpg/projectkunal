@@ -418,6 +418,7 @@ test_plan:
     - "Enhanced visualization display for all states"
     - "API Branding Updates"
     - "MongoDB Collection Integration"
+    - "3D Conveyor Belt Scene Implementation"
   stuck_tasks:
     - "Backend API connection issues"
   test_all: true
