@@ -168,21 +168,72 @@ const MovingCube = ({ position, isTransformed, transformProgress, onTransform, c
   );
 };
 
-// Electric sparks component
-const ElectricSparks = ({ position }) => {
-  const sparkRef = useRef();
+// Enhanced electric sparks component
+const ElectricSparks = ({ position, phase = 1 }) => {
+  const sparkGroupRef = useRef();
+  const sparks = useMemo(() => 
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      offset: [
+        (Math.random() - 0.5) * 0.15,
+        Math.random() * 0.15,
+        (Math.random() - 0.5) * 0.15
+      ],
+      delay: i * 0.1,
+      intensity: 0.7 + Math.random() * 0.3
+    })), []
+  );
   
   useFrame((state) => {
-    if (sparkRef.current) {
-      sparkRef.current.material.opacity = 0.5 + Math.sin(state.clock.elapsedTime * 10) * 0.3;
+    if (sparkGroupRef.current) {
+      // Animate the entire spark group
+      sparkGroupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 4) * 0.2;
+      
+      // Animate individual sparks
+      sparkGroupRef.current.children.forEach((spark, i) => {
+        if (spark.material) {
+          const sparkData = sparks[i];
+          const time = state.clock.elapsedTime * 12 + sparkData.delay;
+          spark.material.opacity = (0.4 + Math.sin(time) * 0.4) * sparkData.intensity * phase;
+          spark.position.y = sparkData.offset[1] + Math.sin(time * 0.8) * 0.05;
+          spark.scale.setScalar(0.5 + Math.sin(time * 1.5) * 0.3);
+        }
+      });
     }
   });
   
   return (
-    <group position={position}>
-      {[...Array(5)].map((_, i) => (
-        <Box key={i} args={[0.01, 0.1, 0.01]} position={[Math.random() * 0.1 - 0.05, Math.random() * 0.1, Math.random() * 0.1 - 0.05]}>
-          <meshBasicMaterial ref={sparkRef} color="#00ffff" transparent opacity={0.8} />
+    <group ref={sparkGroupRef} position={position}>
+      {sparks.map((spark) => (
+        <Sphere key={spark.id} args={[0.01]} position={spark.offset}>
+          <meshBasicMaterial 
+            color="#00ffff" 
+            transparent 
+            opacity={0.8}
+            emissive="#00ffff"
+            emissiveIntensity={1}
+          />
+        </Sphere>
+      ))}
+      
+      {/* Energy tendrils */}
+      {Array.from({ length: 3 }, (_, i) => (
+        <Box 
+          key={`tendril-${i}`} 
+          args={[0.005, 0.1, 0.005]} 
+          position={[
+            Math.sin(i * Math.PI * 2 / 3) * 0.08,
+            i * 0.03,
+            Math.cos(i * Math.PI * 2 / 3) * 0.08
+          ]}
+        >
+          <meshBasicMaterial 
+            color="#8b5cf6" 
+            transparent 
+            opacity={0.6}
+            emissive="#8b5cf6"
+            emissiveIntensity={0.8}
+          />
         </Box>
       ))}
     </group>
