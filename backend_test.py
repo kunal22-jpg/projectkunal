@@ -596,5 +596,237 @@ class TestTRACITYAPI(unittest.TestCase):
     def tearDownClass(cls):
         cls.tester.print_summary()
 
+    def test_11_dataset_reordering(self):
+        """Test the /api/datasets endpoint to verify dataset reordering is working correctly"""
+        success, response = self.tester.run_test(
+            "Dataset Reordering",
+            "GET",
+            "datasets",
+            200
+        )
+        self.assertTrue(success)
+        if success:
+            data = response.json()
+            self.assertIsInstance(data, list)
+            
+            # Check if datasets are returned in a consistent order
+            print(f"Dataset order: {[d['collection'] for d in data]}")
+            
+            # Make a second request to verify order consistency
+            success2, response2 = self.tester.run_test(
+                "Dataset Reordering - Second Request",
+                "GET",
+                "datasets",
+                200
+            )
+            
+            if success2:
+                data2 = response2.json()
+                self.assertIsInstance(data2, list)
+                
+                # Compare orders
+                order1 = [d['collection'] for d in data]
+                order2 = [d['collection'] for d in data2]
+                
+                self.assertEqual(order1, order2, "Dataset order should be consistent between requests")
+                print(f"Dataset order is consistent between requests: {order1 == order2}")
+
+    def test_12_power_consumption_data(self):
+        """Test power consumption data availability and filtering"""
+        # First check if power_consumption collection exists and has data for all years (2015-2024)
+        success, response = self.tester.run_test(
+            "Power Consumption Metadata",
+            "GET",
+            "metadata/power_consumption",
+            200
+        )
+        
+        if success:
+            data = response.json()
+            years = data["available_years"]
+            print(f"Power consumption available years: {years}")
+            
+            # Check if years between 2015-2024 are available
+            expected_years = list(range(2015, 2025))
+            available_expected_years = [year for year in expected_years if year in years]
+            print(f"Available years in expected range (2015-2024): {available_expected_years}")
+            
+            # Test filtering by multiple years
+            if len(available_expected_years) >= 2:
+                test_years = available_expected_years[:2]
+                success, response = self.tester.run_test(
+                    f"Power Consumption Data - Years: {test_years}",
+                    "POST",
+                    "data/filtered",
+                    200,
+                    data={"collection": "power_consumption", "years": test_years}
+                )
+                
+                if success:
+                    data = response.json()
+                    print(f"Year-filtered power consumption data - returned {data['returned_count']} records")
+                    
+                    # Verify all returned records have one of the correct years
+                    if data['data']:
+                        for record in data['data']:
+                            self.assertIn(record['year'], test_years)
+            
+            # Test filtering by multiple states
+            states = data["available_states"]
+            if len(states) >= 2:
+                test_states = states[:2]
+                success, response = self.tester.run_test(
+                    f"Power Consumption Data - States: {test_states}",
+                    "POST",
+                    "data/filtered",
+                    200,
+                    data={"collection": "power_consumption", "states": test_states}
+                )
+                
+                if success:
+                    data = response.json()
+                    print(f"State-filtered power consumption data - returned {data['returned_count']} records")
+                    
+                    # Verify all returned records have one of the correct states
+                    if data['data']:
+                        for record in data['data']:
+                            self.assertIn(record['state'], test_states)
+
+    def test_13_enhanced_ai_insights_with_chart_type(self):
+        """Test the /api/insights/enhanced endpoint with chart_type parameter"""
+        collections = ["crimes", "power_consumption", "aqi", "literacy"]
+        chart_types = ["bar", "pie", "line", "doughnut"]
+        
+        for collection in collections:
+            for chart_type in chart_types:
+                success, response = self.tester.run_test(
+                    f"Enhanced AI Insights - {collection} with {chart_type} chart",
+                    "POST",
+                    "insights/enhanced",
+                    200,
+                    data={"collection": collection, "chart_type": chart_type}
+                )
+                
+                if success:
+                    data = response.json()
+                    self.assertIn("insights", data)
+                    insights = data["insights"]
+                    
+                    # Verify chart_type is correctly set
+                    self.assertEqual(insights["chart_type"], chart_type)
+                    
+                    # Verify insights structure includes chart-specific elements
+                    self.assertIn("visualization_notes", insights)
+                    self.assertIn(chart_type, insights["visualization_notes"])
+                    
+                    print(f"Enhanced insights for {collection} with {chart_type} chart:")
+                    print(f"- Chart type: {insights['chart_type']}")
+                    print(f"- Visualization notes: {insights['visualization_notes'][:100]}...")
+
+    def test_14_filtered_data_with_large_limits(self):
+        """Test /api/data/filtered with limit=1000 to ensure it can handle showing all states"""
+        collections = ["crimes", "power_consumption", "aqi", "literacy"]
+        
+        for collection in collections:
+            success, response = self.tester.run_test(
+                f"Filtered data for {collection} with large limit",
+                "POST",
+                "data/filtered",
+                200,
+                data={"collection": collection, "limit": 1000}
+            )
+            
+            if success:
+                data = response.json()
+                print(f"Large limit query - returned {data['returned_count']} records out of {data['total_count']}")
+                
+                # Check if we got a significant number of records
+                self.assertGreaterEqual(data['returned_count'], 100, "Should return at least 100 records with limit=1000")
+                
+                # Check if we got records for multiple states
+                if data['data']:
+                    states = set(record['state'] for record in data['data'] if 'state' in record)
+                    print(f"Number of unique states in response: {len(states)}")
+                    print(f"States: {states}")
+                    
+                    # Should have at least 5 states in a large result set
+                    self.assertGreaterEqual(len(states), 5, "Should return data for at least 5 states with limit=1000")
+
+    def test_15_year_wise_data_retrieval(self):
+        """Test filtering by multiple years to ensure year-wise data separation works correctly"""
+        collections = ["crimes", "power_consumption", "aqi", "literacy"]
+        
+        for collection in collections:
+            # First get metadata to know what years are available
+            success, metadata_response = self.tester.run_test(
+                f"Get metadata for {collection} (for year-wise test)",
+                "GET",
+                f"metadata/{collection}",
+                200
+            )
+            
+            if not success:
+                continue
+                
+            metadata = metadata_response.json()
+            years = metadata["available_years"]
+            
+            # Need at least 2 years for this test
+            if len(years) < 2:
+                print(f"Skipping year-wise test for {collection} - not enough years available")
+                continue
+            
+            # Select 2 years for testing
+            test_years = years[:2]
+            
+            success, response = self.tester.run_test(
+                f"Year-wise data for {collection} - Years: {test_years}",
+                "POST",
+                "data/filtered",
+                200,
+                data={"collection": collection, "years": test_years}
+            )
+            
+            if success:
+                data = response.json()
+                print(f"Year-wise data - returned {data['returned_count']} records")
+                
+                # Verify we got data for both years
+                if data['data']:
+                    result_years = set()
+                    for record in data['data']:
+                        if collection == "covid_stats":
+                            if 'date' in record:
+                                year = int(record['date'][:4])
+                                result_years.add(year)
+                        else:
+                            if 'year' in record:
+                                result_years.add(record['year'])
+                    
+                    print(f"Years in result: {result_years}")
+                    
+                    # Check if we got data for all requested years
+                    for year in test_years:
+                        self.assertIn(year, result_years, f"Should have data for year {year}")
+                    
+                    # Count records per year
+                    year_counts = {}
+                    for record in data['data']:
+                        if collection == "covid_stats":
+                            if 'date' in record:
+                                year = int(record['date'][:4])
+                                year_counts[year] = year_counts.get(year, 0) + 1
+                        else:
+                            if 'year' in record:
+                                year = record['year']
+                                year_counts[year] = year_counts.get(year, 0) + 1
+                    
+                    print(f"Records per year: {year_counts}")
+                    
+                    # Each year should have a reasonable number of records
+                    for year in test_years:
+                        if year in year_counts:
+                            self.assertGreater(year_counts[year], 0, f"Should have multiple records for year {year}")
+
 if __name__ == "__main__":
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
