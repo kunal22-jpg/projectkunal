@@ -35,10 +35,21 @@ const DataExplorer = () => {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/datasets`);
       if (response.ok) {
         const data = await response.json();
-        setDatasets(data);
-        if (data.length > 0) {
-          setSelectedDataset(data[0]);
-          await fetchVisualizationData(data[0].collection);
+        
+        // Reorder datasets: User Profiles → Status → Datasets → Crimes → Power → AQI → Literacy
+        const datasetOrder = ['user_profiles', 'status_checks', 'datasets', 'crimes', 'power_consumption', 'aqi', 'literacy'];
+        const orderedDatasets = datasetOrder.map(collection => 
+          data.find(d => d.collection === collection)
+        ).filter(Boolean);
+        
+        // Add any remaining datasets not in the predefined order
+        const remainingDatasets = data.filter(d => !datasetOrder.includes(d.collection));
+        const finalDatasets = [...orderedDatasets, ...remainingDatasets];
+        
+        setDatasets(finalDatasets);
+        if (finalDatasets.length > 0) {
+          setSelectedDataset(finalDatasets[0]);
+          await fetchVisualizationData(finalDatasets[0].collection);
         }
       }
     } catch (error) {
