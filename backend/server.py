@@ -724,52 +724,149 @@ async def get_enhanced_insights(filter_request: FilterRequest):
 
 @api_router.post("/chat")
 async def chat_with_ai(query: ChatQuery):
-    """AI chatbot endpoint for natural language queries"""
+    """Enhanced AI chatbot endpoint for natural language queries with better data processing"""
     try:
-        # If no specific dataset mentioned, search across available collections
-        collections = await db.list_collection_names()
+        # Process the query for better understanding
+        query_info = await process_enhanced_query(query.query)
         
-        # Filter out system collections
+        # If specific data query detected, handle it specifically
+        if query_info['collection'] and (query_info['states'] or query_info['years']):
+            try:
+                # Build targeted query
+                db_query = {}
+                
+                if query_info['states']:
+                    # Map state names to database format
+                    state_names = []
+                    for state in query_info['states']:
+                        if state.lower() == 'delhi':
+                            state_names.append('Delhi')
+                        elif state.lower() == 'mumbai':
+                            state_names.extend(['Maharashtra', 'Mumbai'])
+                        elif state.lower() == 'bangalore':
+                            state_names.extend(['Karnataka', 'Bangalore'])
+                        elif state.lower() == 'kerala':
+                            state_names.append('Kerala')
+                        else:
+                            # Capitalize first letter of each word
+                            state_names.append(state.title())
+                    
+                    db_query["state"] = {"$in": state_names}
+                
+                if query_info['years']:
+                    if query_info['collection'] == "covid_stats":
+                        # For COVID data, filter by year from date field
+                        year_filters = []
+                        for year in query_info['years']:
+                            year_filters.append({"date": {"$regex": f"^{year}-"}})
+                        if year_filters:
+                            db_query["$or"] = year_filters
+                    else:
+                        db_query["year"] = {"$in": query_info['years']}
+                
+                # Get specific data
+                data = await db[query_info['collection']].find(db_query).limit(50).to_list(50)
+                
+                if data:
+                    # Generate enhanced human-readable response
+                    insight = await generate_specific_response(data, query_info)
+                    
+                    # Get chart recommendations
+                    chart_rec = await get_chart_recommendations(data)
+                    
+                    return {
+                        "query": query.query,
+                        "results": [{
+                            "collection": query_info['collection'],
+                            "insight": insight,
+                            "chart_type": chart_rec["recommended"],
+                            "data": data[:5],  # Sample data for visualization
+                            "record_count": len(data),
+                            "query_info": query_info
+                        }],
+                        "total_collections_searched": 1
+                    }
+                else:
+                    # No specific data found, provide helpful response
+                    return {
+                        "query": query.query,
+                        "results": [{
+                            "collection": query_info['collection'],
+                            "insight": f"I couldn't find specific {query_info['data_type']} data for {', '.join(query_info['states'])} in {', '.join(map(str, query_info['years']))}. The data might not be available for those specific parameters. Try asking about different states or years, or check our available datasets.",
+                            "chart_type": "bar",
+                            "data": [],
+                            "record_count": 0
+                        }],
+                        "total_collections_searched": 1
+                    }
+                    
+            except Exception as e:
+                logging.error(f"Specific query error: {e}")
+                # Fall through to general search
+        
+        # General search across collections (original logic)
+        collections = await db.list_collection_names()
         data_collections = [c for c in collections if not c.startswith('system.')]
         
         if query.dataset and query.dataset in data_collections:
             target_collections = [query.dataset]
         else:
-            target_collections = data_collections[:3]  # Limit to first 3 collections
+            # Focus on main data collections
+            priority_collections = ['crimes', 'literacy', 'aqi', 'power_consumption']
+            target_collections = [c for c in priority_collections if c in data_collections][:3]
         
         results = []
         for collection_name in target_collections:
-            # Get sample data from collection
-            sample_data = await db[collection_name].find().limit(10).to_list(10)
-            
-            if sample_data:
-                # Get AI insights
-                ai_result = await get_openai_insight(sample_data, query.query)
+            try:
+                # Get sample data from collection
+                sample_data = await db[collection_name].find().limit(10).to_list(10)
                 
-                # Get chart recommendations
-                chart_rec = await get_chart_recommendations(sample_data)
-                
-                # Process data for visualization
-                processed_data = []
-                for doc in sample_data[:5]:  # Limit to 5 for response
-                    # Remove MongoDB _id and convert to serializable format
-                    clean_doc = {k: v for k, v in doc.items() if k != '_id'}
-                    # Convert any datetime objects to strings
-                    for key, value in clean_doc.items():
-                        if isinstance(value, datetime):
-                            clean_doc[key] = value.isoformat()
-                    processed_data.append(clean_doc)
-                
-                results.append({
-                    "collection": collection_name,
-                    "insight": ai_result.get("insight", "Analysis completed"),
-                    "chart_type": ai_result.get("chart_type", chart_rec["recommended"]),
-                    "data": processed_data,
-                    "anomalies": ai_result.get("anomalies", []),
-                    "trend": ai_result.get("trend", "stable"),
-                    "key_metrics": ai_result.get("key_metrics", []),
-                    "record_count": len(sample_data)
-                })
+                if sample_data:
+                    # Get AI insights
+                    ai_result = await get_openai_insight(sample_data, query.query)
+                    
+                    # Get chart recommendations
+                    chart_rec = await get_chart_recommendations(sample_data)
+                    
+                    # Process data for visualization
+                    processed_data = []
+                    for doc in sample_data[:5]:
+                        clean_doc = {k: v for k, v in doc.items() if k != '_id'}
+                        for key, value in clean_doc.items():
+                            if isinstance(value, datetime):
+                                clean_doc[key] = value.isoformat()
+                        processed_data.append(clean_doc)
+                    
+                    results.append({
+                        "collection": collection_name,
+                        "insight": ai_result.get("insight", "Analysis completed"),
+                        "chart_type": ai_result.get("chart_type", chart_rec["recommended"]),
+                        "data": processed_data,
+                        "anomalies": ai_result.get("anomalies", []),
+                        "trend": ai_result.get("trend", "stable"),
+                        "key_metrics": ai_result.get("key_metrics", []),
+                        "record_count": len(sample_data)
+                    })
+            except Exception as e:
+                logging.error(f"Collection {collection_name} error: {e}")
+                continue
+        
+        # If no results, provide helpful response
+        if not results:
+            return {
+                "query": query.query,
+                "results": [{
+                    "collection": "general",
+                    "insight": "I'm your TRACITY AI assistant! I can help you analyze data about Indian states including:\n\n🔍 **Crime Statistics** - Ask about crime rates in specific states\n📚 **Literacy Rates** - Education data across India\n🌬️ **Air Quality (AQI)** - Pollution levels by state\n⚡ **Power Consumption** - Energy usage patterns\n\nTry asking questions like:\n• 'What is the crime rate in Delhi in 2020?'\n• 'Show me literacy rates in Kerala'\n• 'Compare AQI between Mumbai and Bangalore'\n• 'Power consumption in Maharashtra'",
+                    "chart_type": "bar",
+                    "data": [],
+                    "anomalies": [],
+                    "trend": "stable",
+                    "key_metrics": [],
+                    "record_count": 0
+                }],
+                "total_collections_searched": len(target_collections)
+            }
         
         return {
             "query": query.query,
@@ -782,8 +879,8 @@ async def chat_with_ai(query: ChatQuery):
         return {
             "query": query.query,
             "results": [{
-                "collection": "sample",
-                "insight": "I apologize, but I'm having trouble accessing the data right now. Please try again.",
+                "collection": "error",
+                "insight": "I apologize, but I'm having trouble processing your request right now. Please try rephrasing your question or ask about our available datasets (crimes, literacy, AQI, power consumption).",
                 "chart_type": "bar",
                 "data": [],
                 "anomalies": [],
