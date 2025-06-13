@@ -371,17 +371,55 @@ const ChartComponent = ({ data, chartType = 'bar', height = 300, showYearSeparat
   }
 
   const renderChart = () => {
-    switch (chartType) {
-      case 'line':
-        return <Line data={chartData} options={options} />;
-      case 'pie':
-        return <Pie data={chartData} options={options} />;
-      case 'doughnut':
-        return <Doughnut data={chartData} options={options} />;
-      case 'bar':
-      default:
-        return <Bar data={chartData} options={options} />;
+    const labelCount = chartData?.labels?.length || 0;
+    const needsHorizontalScroll = labelCount > 15 && (chartType === 'bar');
+    
+    // Calculate dynamic width for horizontal scrolling
+    const minBarWidth = 40; // Minimum width per bar
+    const dynamicWidth = needsHorizontalScroll ? Math.max(800, labelCount * minBarWidth) : '100%';
+    
+    const chartProps = {
+      data: chartData,
+      options: options
+    };
+
+    const chartElement = (() => {
+      switch (chartType) {
+        case 'line':
+          return <Line {...chartProps} />;
+        case 'pie':
+          return <Pie {...chartProps} />;
+        case 'doughnut':
+          return <Doughnut {...chartProps} />;
+        case 'bar':
+        default:
+          return <Bar {...chartProps} />;
+      }
+    })();
+
+    // Wrap in scrollable container if needed
+    if (needsHorizontalScroll) {
+      return (
+        <div className="overflow-x-auto overflow-y-hidden">
+          <div style={{ width: dynamicWidth, minWidth: '800px' }}>
+            {chartElement}
+          </div>
+        </div>
+      );
     }
+
+    // For pie charts with many items, add scrollable legend
+    if ((chartType === 'pie' || chartType === 'doughnut') && labelCount > 8) {
+      return (
+        <div className="flex h-full">
+          <div className="flex-1 pr-4">
+            {chartElement}
+          </div>
+        </div>
+      );
+    }
+
+    return chartElement;
   };
 
   return (
