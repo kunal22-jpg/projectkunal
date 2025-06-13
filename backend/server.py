@@ -768,11 +768,21 @@ async def chat_with_ai(query: ChatQuery):
                 data = await db[query_info['collection']].find(db_query).limit(50).to_list(50)
                 
                 if data:
+                    # Clean data to remove ObjectIds and convert dates
+                    cleaned_data = []
+                    for doc in data:
+                        clean_doc = {k: v for k, v in doc.items() if k != '_id'}
+                        # Convert datetime objects to strings
+                        for key, value in clean_doc.items():
+                            if isinstance(value, datetime):
+                                clean_doc[key] = value.isoformat()
+                        cleaned_data.append(clean_doc)
+                    
                     # Generate enhanced human-readable response
-                    insight = await generate_specific_response(data, query_info)
+                    insight = await generate_specific_response(cleaned_data, query_info)
                     
                     # Get chart recommendations
-                    chart_rec = await get_chart_recommendations(data)
+                    chart_rec = await get_chart_recommendations(cleaned_data)
                     
                     return {
                         "query": query.query,
@@ -780,9 +790,13 @@ async def chat_with_ai(query: ChatQuery):
                             "collection": query_info['collection'],
                             "insight": insight,
                             "chart_type": chart_rec["recommended"],
-                            "data": data[:5],  # Sample data for visualization
-                            "record_count": len(data),
-                            "query_info": query_info
+                            "data": cleaned_data[:5],  # Sample data for visualization
+                            "record_count": len(cleaned_data),
+                            "query_info": {
+                                "states": query_info['states'],
+                                "years": query_info['years'],
+                                "data_type": query_info['data_type']
+                            }
                         }],
                         "total_collections_searched": 1
                     }
