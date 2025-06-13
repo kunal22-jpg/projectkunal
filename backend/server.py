@@ -526,7 +526,8 @@ async def get_enhanced_insights(filter_request: FilterRequest):
         insights = await get_enhanced_web_insights(
             processed_data, 
             filter_request.collection, 
-            f"Analyze patterns in {filter_request.collection} data"
+            f"Analyze patterns in {filter_request.collection} data",
+            filter_request.chart_type or "bar"
         )
         
         # Get total count for context
