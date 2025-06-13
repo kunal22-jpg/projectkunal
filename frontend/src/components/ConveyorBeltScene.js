@@ -4,24 +4,53 @@ import { Box, Sphere, Plane, Text, Environment, MeshTransmissionMaterial } from 
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
 
-// Sound effects
+// Enhanced sound effects
 const createSparkSound = () => {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.type = 'sawtooth';
-  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
-  
-  gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.15);
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Create multiple oscillators for richer sound
+    const oscillator1 = audioContext.createOscillator();
+    const oscillator2 = audioContext.createOscillator();
+    const oscillator3 = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    // Mix the oscillators
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    oscillator3.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Electric spark characteristics
+    oscillator1.type = 'sawtooth';
+    oscillator2.type = 'square';
+    oscillator3.type = 'triangle';
+    
+    // Different frequencies for harmonic richness
+    oscillator1.frequency.setValueAtTime(1200, audioContext.currentTime);
+    oscillator1.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.08);
+    
+    oscillator2.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator2.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.1);
+    
+    oscillator3.frequency.setValueAtTime(2400, audioContext.currentTime);
+    oscillator3.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.06);
+    
+    // Subtle volume for non-intrusive effect
+    gainNode.gain.setValueAtTime(0.03, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
+    
+    oscillator1.start(audioContext.currentTime);
+    oscillator2.start(audioContext.currentTime + 0.01);
+    oscillator3.start(audioContext.currentTime + 0.005);
+    
+    oscillator1.stop(audioContext.currentTime + 0.12);
+    oscillator2.stop(audioContext.currentTime + 0.13);
+    oscillator3.stop(audioContext.currentTime + 0.1);
+  } catch (error) {
+    // Fail silently if audio context is not available
+    console.log('Audio not available');
+  }
 };
 
 // Individual cube component
