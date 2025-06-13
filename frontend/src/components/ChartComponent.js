@@ -219,53 +219,145 @@ const ChartComponent = ({ data, chartType = 'bar', height = 300, showYearSeparat
     }
   }, [data, chartType, showYearSeparately]);
 
-  const options = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: '#F1F5F9',
-          font: {
-            size: 12
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(30, 41, 59, 0.9)',
-        titleColor: '#F1F5F9',
-        bodyColor: '#F1F5F9',
-        borderColor: 'rgba(59, 130, 246, 0.5)',
-        borderWidth: 1,
-      }
-    },
-    scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
-      x: {
-        ticks: {
-          color: '#94A3B8',
-          font: {
-            size: 10
+  const options = useMemo(() => {
+    // Check if we need horizontal scrolling (many states/labels)
+    const labelCount = chartData?.labels?.length || 0;
+    const needsScroll = labelCount > 15 && (chartType === 'bar');
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: chartType === 'pie' || chartType === 'doughnut' ? 'right' : 'top',
+          labels: {
+            color: '#F1F5F9',
+            font: {
+              size: 12,
+              weight: '500'
+            },
+            padding: 15,
+            usePointStyle: true,
+            boxWidth: 12,
+            generateLabels: (chart) => {
+              const original = ChartJS.defaults.plugins.legend.labels.generateLabels;
+              const labels = original.call(this, chart);
+              
+              // Enhanced legend styling for better visibility
+              labels.forEach(label => {
+                label.fillStyle = label.fillStyle;
+                label.strokeStyle = label.strokeStyle;
+                label.lineWidth = 2;
+              });
+              
+              return labels;
+            }
           },
-          maxRotation: 45,
+          // Make legend scrollable for pie charts with many items
+          ...(chartType === 'pie' || chartType === 'doughnut' ? {
+            maxHeight: 200,
+            position: 'right'
+          } : {})
         },
-        grid: {
-          color: 'rgba(148, 163, 184, 0.1)',
+        tooltip: {
+          backgroundColor: 'rgba(30, 41, 59, 0.95)',
+          titleColor: '#F1F5F9',
+          bodyColor: '#F1F5F9',
+          borderColor: 'rgba(99, 102, 241, 0.6)',
+          borderWidth: 2,
+          cornerRadius: 8,
+          titleFont: {
+            size: 14,
+            weight: 'bold'
+          },
+          bodyFont: {
+            size: 13
+          },
+          padding: 12,
+          displayColors: true,
+          intersect: false,
+          mode: 'index'
         }
       },
-      y: {
-        ticks: {
-          color: '#94A3B8',
-          font: {
-            size: 10
+      // Enhanced scales with horizontal scrolling support
+      scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
+        x: {
+          ticks: {
+            color: '#94A3B8',
+            font: {
+              size: needsScroll ? 9 : 11,
+              weight: '500'
+            },
+            maxRotation: needsScroll ? 90 : 45,
+            minRotation: needsScroll ? 45 : 0,
+          },
+          grid: {
+            color: 'rgba(148, 163, 184, 0.15)',
+            lineWidth: 1
+          },
+          border: {
+            color: 'rgba(148, 163, 184, 0.3)',
+            width: 1
           }
         },
-        grid: {
-          color: 'rgba(148, 163, 184, 0.1)',
+        y: {
+          ticks: {
+            color: '#94A3B8',
+            font: {
+              size: 11,
+              weight: '500'
+            },
+            callback: function(value) {
+              // Format large numbers with K, M suffixes
+              if (value >= 1000000) {
+                return (value / 1000000).toFixed(1) + 'M';
+              } else if (value >= 1000) {
+                return (value / 1000).toFixed(1) + 'K';
+              }
+              return value;
+            }
+          },
+          grid: {
+            color: 'rgba(148, 163, 184, 0.15)',
+            lineWidth: 1
+          },
+          border: {
+            color: 'rgba(148, 163, 184, 0.3)',
+            width: 1
+          }
         }
+      } : undefined,
+      // Enhanced interaction options
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      elements: {
+        bar: {
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+        point: {
+          radius: 4,
+          hoverRadius: 6,
+          borderWidth: 2,
+          hoverBorderWidth: 3
+        },
+        line: {
+          borderWidth: 3,
+          borderCapStyle: 'round'
+        }
+      },
+      // Animation settings
+      animation: {
+        duration: 1000,
+        easing: 'easeInOutQuart'
+      },
+      hover: {
+        animationDuration: 200
       }
-    } : undefined,
-  }), [chartType]);
+    };
+  }, [chartType, chartData]);
 
   if (!chartData) {
     return (
