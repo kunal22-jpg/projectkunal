@@ -608,8 +608,18 @@ const ConveyorBeltScene = ({ onChatOpen }) => {
         </p>
       </motion.div>
       
-      {/* 3D Scene */}
-      <Canvas shadows>
+      {/* 3D Scene with performance settings */}
+      <Canvas 
+        shadows
+        camera={{ fov: 50, near: 0.1, far: 100 }}
+        gl={{ 
+          antialias: true, 
+          alpha: true,
+          powerPreference: "high-performance"
+        }}
+        performance={{ min: 0.5, max: 1 }}
+        frameloop="demand"
+      >
         <Scene onEnergyScreenClick={onChatOpen} />
       </Canvas>
       
