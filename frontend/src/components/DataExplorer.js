@@ -567,6 +567,7 @@ const DataExplorer = () => {
                         data={visualizationData.data}
                         chartType={chartType}
                         height={384}
+                        showYearSeparately={showYearSeparately}
                       />
                     </div>
                   ) : (
