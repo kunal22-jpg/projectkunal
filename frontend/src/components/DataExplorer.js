@@ -18,6 +18,7 @@ const DataExplorer = () => {
   const [sortBy, setSortBy] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showAllStates, setShowAllStates] = useState(false);
+  const [showYearSeparately, setShowYearSeparately] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
 
   useEffect(() => {
