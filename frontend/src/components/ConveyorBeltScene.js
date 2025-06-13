@@ -476,12 +476,13 @@ const Scene = ({ onEnergyScreenClick }) => {
       <ConveyorBelt />
       
       {/* Moving cubes */}
-      {cubes.map((cube) => (
+      {cubes.map((cube, index) => (
         <MovingCube
           key={cube.id}
           position={cube.position}
           isTransformed={cube.isTransformed}
           onTransform={handleTransform}
+          cubeIndex={index}
         />
       ))}
       
