@@ -611,7 +611,12 @@ const DataExplorer = () => {
                       <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                         <h4 className="font-semibold text-blue-300 mb-2">Chart Type</h4>
                         <p className="text-sm text-slate-300 capitalize">
-                          {insights.insights?.chart_type || 'Bar Chart'}
+                          {insights.insights?.chart_type || chartType} 
+                          {chartType !== (insights.insights?.chart_type || 'bar') && (
+                            <span className="text-xs text-blue-400 ml-2">
+                              (Currently: {chartType})
+                            </span>
+                          )}
                         </p>
                       </div>
                       
