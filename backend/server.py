@@ -758,7 +758,8 @@ async def get_dataset_insights(collection_name: str, states: str = None, years: 
         insights = await get_enhanced_web_insights(
             sample_data, 
             collection_name, 
-            f"Provide comprehensive analysis of the {collection_name} dataset including trends, patterns, and key findings"
+            f"Provide comprehensive analysis of the {collection_name} dataset including trends, patterns, and key findings",
+            "bar"  # Default chart type for insights
         )
         
         # Calculate basic statistics
