@@ -1,33 +1,165 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ChatPopup = ({ onClose }) => {
-  const iframeRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showIframe, setShowIframe] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'ai',
+      content: "Hello! I'm your TRACITY AI assistant. I can analyze data from our comprehensive database including crime statistics, literacy rates, AQI data, and power consumption across all Indian states. Ask me anything like 'What is the crime rate in Delhi in 2020?' or 'Show me literacy trends in Kerala'!",
+      timestamp: new Date(),
+      source: 'TRACITY Database'
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    // Show TRACITY loading for 2 seconds, then load the chatbot
-    const loadingTimer = setTimeout(() => {
-      setShowIframe(true);
-    }, 1500);
+    scrollToBottom();
+  }, [messages]);
 
-    return () => clearTimeout(loadingTimer);
+  useEffect(() => {
+    // Show TRACITY loading animation
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+      // Focus input after loading
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (showIframe) {
-      const iframe = iframeRef.current;
-      if (iframe) {
-        iframe.onload = () => {
-          // Wait a bit more to ensure content is fully loaded
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 1000);
+  // Enhanced message routing for data queries
+  const isDataQuery = (message) => {
+    const dataKeywords = [
+      'crime', 'literacy', 'aqi', 'air quality', 'power consumption', 'power',
+      'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad',
+      'kerala', 'tamil nadu', 'punjab', 'maharashtra', 'gujarat', 'rajasthan',
+      'uttar pradesh', 'bihar', 'west bengal', 'andhra pradesh', 'telangana',
+      'karnataka', 'odisha', 'madhya pradesh', 'assam', 'jharkhand',
+      'haryana', 'chhattisgarh', 'uttarakhand', 'himachal pradesh',
+      'tripura', 'meghalaya', 'manipur', 'nagaland', 'goa', 'arunachal pradesh',
+      'mizoram', 'sikkim', 'jammu and kashmir', 'ladakh',
+      'year', '2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024',
+      'rate', 'statistics', 'data', 'trend', 'compare', 'show me', 'what is'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    return dataKeywords.some(keyword => lowerMessage.includes(keyword));
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    const query = inputMessage;
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      // Always use the backend API for both data and general queries
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          dataset: null
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        let aiContent = data.results?.[0]?.insight || "I understand your query. Let me analyze the data for you.";
+        let source = 'TRACITY Database';
+        
+        // Enhanced response for data queries
+        if (isDataQuery(query) && data.results?.[0]) {
+          const result = data.results[0];
+          
+          // Add data context if available
+          if (result.data && result.data.length > 0) {
+            const sampleData = result.data[0];
+            const dataKeys = Object.keys(sampleData).filter(key => key !== '_id');
+            
+            aiContent += `\n\n📊 **Data Summary:**\n`;
+            aiContent += `• Found ${data.results[0].record_count || result.data.length} relevant records\n`;
+            aiContent += `• Data includes: ${dataKeys.slice(0, 4).join(', ')}${dataKeys.length > 4 ? '...' : ''}\n`;
+            
+            // Show sample values if available
+            if (sampleData.state) aiContent += `• Sample state: ${sampleData.state}\n`;
+            if (sampleData.year) aiContent += `• Sample year: ${sampleData.year}\n`;
+          }
+          
+          // Add trend information
+          if (result.trend) {
+            aiContent += `\n📈 **Trend**: ${result.trend}`;
+          }
+          
+          source = `${result.collection || 'Database'} Collection`;
+        }
+
+        const aiMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: aiContent,
+          timestamp: new Date(),
+          source: source,
+          chartData: data.results?.[0]?.data || null,
+          chartType: data.results?.[0]?.chart_type || null,
+          isDataResponse: isDataQuery(query)
         };
+        
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error('Failed to get response');
       }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: "I apologize, but I'm having trouble accessing the database right now. Please try again, or check if the backend service is running properly.",
+        timestamp: new Date(),
+        source: 'Error'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [showIframe]);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    return timestamp.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
 
   return (
     <motion.div
