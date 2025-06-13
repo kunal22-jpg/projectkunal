@@ -64,6 +64,7 @@ class FilterRequest(BaseModel):
     sort_by: Optional[str] = None
     sort_order: Optional[str] = "asc"  # asc or desc
     limit: Optional[int] = 100
+    chart_type: Optional[str] = "bar"  # For AI insights context
 
 class CollectionMetadata(BaseModel):
     collection: str
