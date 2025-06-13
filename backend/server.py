@@ -146,33 +146,62 @@ async def build_filter_query(filter_request: FilterRequest) -> Dict[str, Any]:
     
     return query
 
-async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: str, query: str) -> Dict[str, Any]:
-    """Generate enhanced insights using web research and AI"""
+async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: str, query: str, chart_type: str = "bar") -> Dict[str, Any]:
+    """Generate enhanced insights using web research and AI with chart type context"""
     try:
         # Prepare context about the data
         context_info = {
             "collection": collection_name,
             "sample_size": len(data_sample),
-            "data_structure": list(data_sample[0].keys()) if data_sample else []
+            "data_structure": list(data_sample[0].keys()) if data_sample else [],
+            "chart_type": chart_type
         }
+        
+        # Chart-specific analysis guidance
+        chart_analysis_guide = {
+            "bar": "Focus on comparative analysis between different states/regions. Highlight top performers and underperformers.",
+            "line": "Emphasize trends over time, seasonal patterns, and rate of change. Look for growth or decline patterns.",
+            "pie": "Analyze proportional relationships and market share. Focus on distribution and relative contributions.",
+            "doughnut": "Similar to pie chart but emphasize the central metric and overall composition."
+        }
+        
+        chart_context = chart_analysis_guide.get(chart_type, chart_analysis_guide["bar"])
         
         # Generate research-based insights
         if collection_name == "crimes":
             insight_context = f"""
-            Analyzing crime data from Indian states. The dataset contains information about {len(data_sample)} crime records.
+            Analyzing crime data from Indian states for {chart_type} chart visualization. The dataset contains information about {len(data_sample)} crime records.
             Key fields: {', '.join(context_info['data_structure'])}
             
+            Chart Type Context: {chart_context}
+            
             Provide insights about:
-            1. Crime patterns across states
+            1. Crime patterns across states (optimized for {chart_type} visualization)
             2. Trends over time
             3. Most affected regions
             4. Crime type distribution
             5. Policy implications
             """
+        elif collection_name == "power_consumption":
+            insight_context = f"""
+            Analyzing power consumption data from Indian states for {chart_type} chart visualization. The dataset contains {len(data_sample)} records.
+            Key fields: {', '.join(context_info['data_structure'])}
+            
+            Chart Type Context: {chart_context}
+            
+            Provide insights about:
+            1. Power consumption patterns across states
+            2. Energy efficiency trends
+            3. Industrial vs residential consumption
+            4. Regional energy demands
+            5. Infrastructure development indicators
+            """
         elif collection_name == "covid_stats":
             insight_context = f"""
-            Analyzing COVID-19 statistics from Indian states. The dataset contains {len(data_sample)} records.
+            Analyzing COVID-19 statistics from Indian states for {chart_type} chart visualization. The dataset contains {len(data_sample)} records.
             Key fields: {', '.join(context_info['data_structure'])}
+            
+            Chart Type Context: {chart_context}
             
             Provide insights about:
             1. Mortality patterns across states
@@ -183,8 +212,10 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
             """
         elif collection_name == "aqi":
             insight_context = f"""
-            Analyzing Air Quality Index data from Indian states. The dataset contains {len(data_sample)} records.
+            Analyzing Air Quality Index data from Indian states for {chart_type} chart visualization. The dataset contains {len(data_sample)} records.
             Key fields: {', '.join(context_info['data_structure'])}
+            
+            Chart Type Context: {chart_context}
             
             Provide insights about:
             1. Air pollution levels across states
@@ -195,8 +226,10 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
             """
         elif collection_name == "literacy":
             insight_context = f"""
-            Analyzing literacy rate data from Indian states. The dataset contains {len(data_sample)} records.
+            Analyzing literacy rate data from Indian states for {chart_type} chart visualization. The dataset contains {len(data_sample)} records.
             Key fields: {', '.join(context_info['data_structure'])}
+            
+            Chart Type Context: {chart_context}
             
             Provide insights about:
             1. Education levels across states
@@ -206,7 +239,7 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
             5. Policy effectiveness
             """
         else:
-            insight_context = f"Analyzing data from {collection_name} with {len(data_sample)} records."
+            insight_context = f"Analyzing data from {collection_name} with {len(data_sample)} records for {chart_type} visualization."
         
         # Use OpenAI for enhanced analysis
         prompt = f"""
@@ -215,16 +248,17 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
         User query: "{query}"
         Sample data: {json.dumps(data_sample[:3], default=str)}
         
-        Provide a comprehensive analysis in JSON format:
+        Provide a comprehensive analysis optimized for {chart_type} chart visualization in JSON format:
         {{
-            "insight": "Detailed analytical insight (150-200 words)",
-            "chart_type": "Recommended chart type (bar/line/pie/scatter)",
-            "key_findings": ["Finding 1", "Finding 2", "Finding 3"],
+            "insight": "Detailed analytical insight optimized for {chart_type} visualization (150-200 words)",
+            "chart_type": "{chart_type}",
+            "key_findings": ["Finding 1 relevant to {chart_type}", "Finding 2", "Finding 3"],
             "anomalies": ["Any unusual patterns detected"],
             "trend": "Overall trend (increasing/decreasing/stable/volatile)",
             "recommendations": ["Policy or action recommendation 1", "Recommendation 2"],
-            "comparison_insights": "How different states/regions compare",
-            "temporal_analysis": "Analysis of trends over time"
+            "comparison_insights": "How different states/regions compare (optimized for {chart_type})",
+            "temporal_analysis": "Analysis of trends over time",
+            "visualization_notes": "Specific insights about why {chart_type} chart is effective for this data"
         }}
         """
         
@@ -232,7 +266,7 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
             openai.chat.completions.create,
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are an expert data analyst specializing in Indian socioeconomic data. Provide detailed, research-backed insights."},
+                {"role": "system", "content": f"You are an expert data analyst specializing in Indian socioeconomic data and {chart_type} chart visualization. Provide detailed, research-backed insights optimized for {chart_type} charts."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=800
@@ -243,14 +277,15 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
     except Exception as e:
         logging.error(f"Enhanced insights error: {e}")
         return {
-            "insight": f"Analysis of {collection_name} data shows various patterns across Indian states. The data provides valuable insights into regional variations and trends over time.",
-            "chart_type": "bar",
+            "insight": f"Analysis of {collection_name} data shows various patterns across Indian states. The data provides valuable insights into regional variations and trends over time, optimized for {chart_type} visualization.",
+            "chart_type": chart_type,
             "key_findings": ["Regional variations observed", "Temporal trends identified", "Data quality is good"],
             "anomalies": [],
             "trend": "stable",
             "recommendations": ["Continue monitoring", "Implement targeted policies"],
             "comparison_insights": "Significant differences observed between states",
-            "temporal_analysis": "Trends show interesting patterns over the analyzed period"
+            "temporal_analysis": "Trends show interesting patterns over the analyzed period",
+            "visualization_notes": f"{chart_type} chart effectively displays the data relationships"
         }
 
 # Helper functions for AI integration
