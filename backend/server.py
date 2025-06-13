@@ -697,7 +697,8 @@ async def get_visualization_data(collection_name: str, limit: int = 50, states: 
         ai_insights = await get_enhanced_web_insights(
             processed_data, 
             collection_name, 
-            f"Analyze the {collection_name} dataset patterns and trends"
+            f"Analyze the {collection_name} dataset patterns and trends",
+            "bar"  # Default chart type for general visualization
         )
         
         # Get metadata for context
