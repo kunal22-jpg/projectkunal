@@ -1,19 +1,88 @@
-import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ChatPopup = ({ onClose }) => {
   const iframeRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showIframe, setShowIframe] = useState(false);
 
   useEffect(() => {
-    // Initialize the Botpress webchat when component mounts
-    const iframe = iframeRef.current;
-    if (iframe) {
-      iframe.onload = () => {
-        // Optional: You can add any additional initialization here
-        console.log('Botpress chat loaded successfully');
-      };
-    }
+    // Show TRACITY loading for 2 seconds, then load the chatbot
+    const loadingTimer = setTimeout(() => {
+      setShowIframe(true);
+    }, 1500);
+
+    return () => clearTimeout(loadingTimer);
   }, []);
+
+  useEffect(() => {
+    if (showIframe) {
+      const iframe = iframeRef.current;
+      if (iframe) {
+        iframe.onload = () => {
+          // Wait a bit more to ensure content is fully loaded
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 1000);
+        };
+      }
+    }
+  }, [showIframe]);
+
+  // Custom CSS to hide Botpress branding
+  const hideBotpressBranding = `
+    <style>
+      /* Hide Botpress branding and loading */
+      [class*="poweredBy"], 
+      [class*="powered-by"],
+      [id*="poweredBy"],
+      [id*="powered-by"],
+      .bpw-powered-by,
+      .bpw-branding,
+      .bp-branding,
+      .botpress-branding,
+      .poweredBy,
+      .powered-by,
+      [data-testid*="powered"],
+      [aria-label*="Powered by"],
+      [title*="Powered by"],
+      .bpw-layout-loading,
+      .bpw-loading,
+      .bp-loading,
+      .loading-animation,
+      .spinner,
+      .loader {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+      }
+      
+      /* Custom styling for chat */
+      body {
+        background: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      .bpw-layout {
+        background: transparent !important;
+        border: none !important;
+      }
+      
+      .bpw-header {
+        display: none !important;
+      }
+      
+      /* Hide any loading states */
+      [class*="loading"],
+      [id*="loading"] {
+        display: none !important;
+      }
+    </style>
+  `;
 
   return (
     <motion.div
@@ -51,21 +120,127 @@ const ChatPopup = ({ onClose }) => {
           </button>
         </div>
 
-        {/* Botpress Chat Widget */}
-        <div className="flex-1 overflow-hidden">
-          <iframe
-            ref={iframeRef}
-            src="https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/13/11/20250613110123-M8F9HM2R.json"
-            width="100%"
-            height="100%"
-            style={{ 
-              border: 'none',
-              borderRadius: '0 0 1rem 1rem',
-              backgroundColor: 'transparent'
-            }}
-            title="TRACITY AI Assistant"
-            allow="microphone; camera"
-          />
+        {/* Chat Content Area */}
+        <div className="flex-1 overflow-hidden relative">
+          {/* TRACITY Loading Animation */}
+          <AnimatePresence>
+            {isLoading && (
+              <motion.div
+                className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center z-10"
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {/* TRACITY Cosmic Loading */}
+                <div className="relative mb-6">
+                  <motion.div
+                    className="w-20 h-20 rounded-full border-4 border-purple-500/30"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  >
+                    <motion.div
+                      className="absolute inset-2 rounded-full bg-gradient-conic from-purple-600 via-blue-600 via-pink-600 to-purple-600"
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    />
+                    <div className="absolute inset-4 rounded-full bg-slate-900/90 backdrop-blur-sm flex items-center justify-center">
+                      <span className="text-2xl">⚡</span>
+                    </div>
+                  </motion.div>
+                  
+                  {/* Orbiting particles */}
+                  {[...Array(6)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-2 h-2 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full"
+                      style={{
+                        top: '50%',
+                        left: '50%',
+                        originX: 0.5,
+                        originY: 0.5,
+                      }}
+                      animate={{
+                        rotate: 360,
+                        x: Math.cos(i * 60 * Math.PI / 180) * 50,
+                        y: Math.sin(i * 60 * Math.PI / 180) * 50,
+                      }}
+                      transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "linear",
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Loading Text */}
+                <motion.div
+                  className="text-center"
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <h3 className="text-xl font-bold gradient-text mb-2">
+                    TRACITY AI
+                  </h3>
+                  <p className="text-slate-400 text-sm">Initializing your AI companion...</p>
+                </motion.div>
+
+                {/* Animated dots */}
+                <motion.div className="flex space-x-1 mt-4">
+                  {[...Array(3)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 bg-purple-500 rounded-full"
+                      animate={{ 
+                        scale: [1, 1.5, 1],
+                        opacity: [1, 0.5, 1]
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Botpress Chat Widget */}
+          {showIframe && (
+            <iframe
+              ref={iframeRef}
+              src={`https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/13/11/20250613110123-M8F9HM2R.json&hideHeader=true&hideBranding=true`}
+              width="100%"
+              height="100%"
+              style={{ 
+                border: 'none',
+                borderRadius: '0 0 1rem 1rem',
+                backgroundColor: 'transparent',
+                opacity: isLoading ? 0 : 1,
+                transition: 'opacity 0.5s ease-in-out'
+              }}
+              title="TRACITY AI Assistant"
+              allow="microphone; camera"
+              onLoad={() => {
+                // Inject CSS to hide branding
+                try {
+                  const iframe = iframeRef.current;
+                  if (iframe && iframe.contentDocument) {
+                    const head = iframe.contentDocument.head;
+                    const style = iframe.contentDocument.createElement('style');
+                    style.innerHTML = hideBotpressBranding;
+                    head.appendChild(style);
+                  }
+                } catch (error) {
+                  // Cross-origin restrictions might prevent this
+                  console.log('Cannot inject styles due to CORS restrictions');
+                }
+              }}
+            />
+          )}
         </div>
       </motion.div>
     </motion.div>
