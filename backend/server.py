@@ -288,7 +288,177 @@ async def get_enhanced_web_insights(data_sample: List[Dict], collection_name: st
             "visualization_notes": f"{chart_type} chart effectively displays the data relationships"
         }
 
-# Helper functions for AI integration
+# Helper functions for enhanced data processing
+async def process_enhanced_query(query: str) -> Dict[str, Any]:
+    """Process queries with better state/year detection and specific responses"""
+    query_lower = query.lower()
+    
+    # Indian states mapping (including common variations)
+    state_mapping = {
+        'delhi': ['delhi', 'new delhi', 'ncr'],
+        'mumbai': ['mumbai', 'bombay', 'maharashtra'],
+        'bangalore': ['bangalore', 'bengaluru', 'karnataka'],
+        'chennai': ['chennai', 'madras', 'tamil nadu'],
+        'kolkata': ['kolkata', 'calcutta', 'west bengal'],
+        'hyderabad': ['hyderabad', 'telangana'],
+        'kerala': ['kerala', 'kochi', 'trivandrum'],
+        'punjab': ['punjab', 'chandigarh'],
+        'gujarat': ['gujarat', 'ahmedabad', 'surat'],
+        'rajasthan': ['rajasthan', 'jaipur', 'jodhpur'],
+        'uttar pradesh': ['uttar pradesh', 'up', 'lucknow', 'kanpur'],
+        'bihar': ['bihar', 'patna'],
+        'andhra pradesh': ['andhra pradesh', 'ap', 'visakhapatnam'],
+        'odisha': ['odisha', 'orissa', 'bhubaneswar'],
+        'madhya pradesh': ['madhya pradesh', 'mp', 'bhopal'],
+        'assam': ['assam', 'guwahati'],
+        'jharkhand': ['jharkhand', 'ranchi'],
+        'haryana': ['haryana', 'gurgaon', 'faridabad'],
+        'chhattisgarh': ['chhattisgarh', 'raipur'],
+        'uttarakhand': ['uttarakhand', 'dehradun'],
+        'himachal pradesh': ['himachal pradesh', 'shimla'],
+        'goa': ['goa', 'panaji'],
+        'tripura': ['tripura', 'agartala'],
+        'meghalaya': ['meghalaya', 'shillong'],
+        'manipur': ['manipur', 'imphal'],
+        'nagaland': ['nagaland', 'kohima'],
+        'arunachal pradesh': ['arunachal pradesh', 'itanagar'],
+        'mizoram': ['mizoram', 'aizawl'],
+        'sikkim': ['sikkim', 'gangtok']
+    }
+    
+    # Detect states
+    detected_states = []
+    for state, variations in state_mapping.items():
+        if any(var in query_lower for var in variations):
+            detected_states.append(state)
+    
+    # Detect years
+    import re
+    years = re.findall(r'\b(20[0-2][0-9])\b', query)
+    detected_years = [int(year) for year in years]
+    
+    # Detect data type
+    collection = None
+    data_type = None
+    if any(word in query_lower for word in ['crime', 'murder', 'theft', 'assault', 'fraud']):
+        collection = 'crimes'
+        data_type = 'crime'
+    elif any(word in query_lower for word in ['literacy', 'education', 'literate']):
+        collection = 'literacy'
+        data_type = 'literacy'
+    elif any(word in query_lower for word in ['aqi', 'air quality', 'pollution', 'air']):
+        collection = 'aqi'
+        data_type = 'air quality'
+    elif any(word in query_lower for word in ['power', 'electricity', 'energy', 'consumption']):
+        collection = 'power_consumption'
+        data_type = 'power consumption'
+    
+    return {
+        'states': detected_states,
+        'years': detected_years,
+        'collection': collection,
+        'data_type': data_type,
+        'original_query': query
+    }
+
+async def generate_specific_response(data: List[Dict], query_info: Dict) -> str:
+    """Generate human-readable responses for specific queries"""
+    if not data:
+        return f"I couldn't find any {query_info['data_type']} data for your specific query. Try asking about different states or years, or check if the data exists in our database."
+    
+    states_str = ", ".join(query_info['states']) if query_info['states'] else "various states"
+    years_str = ", ".join(map(str, query_info['years'])) if query_info['years'] else "different years"
+    
+    response = f"📊 **{query_info['data_type'].title()} Data Analysis**\n\n"
+    
+    if query_info['collection'] == 'crimes':
+        total_cases = sum(item.get('cases_reported', 0) for item in data)
+        avg_cases = total_cases / len(data) if data else 0
+        
+        if query_info['states']:
+            response += f"For **{states_str}**"
+            if query_info['years']:
+                response += f" in **{years_str}**"
+            response += f":\n"
+        
+        response += f"• **Total Cases**: {total_cases:,}\n"
+        response += f"• **Average per Record**: {avg_cases:.1f}\n"
+        response += f"• **Records Found**: {len(data)}\n"
+        
+        # Crime types breakdown
+        crime_types = {}
+        for item in data:
+            crime_type = item.get('crime_type', 'Unknown')
+            cases = item.get('cases_reported', 0)
+            crime_types[crime_type] = crime_types.get(crime_type, 0) + cases
+        
+        if crime_types:
+            response += f"\n**Crime Types Breakdown**:\n"
+            for crime_type, cases in sorted(crime_types.items(), key=lambda x: x[1], reverse=True)[:5]:
+                response += f"• {crime_type}: {cases:,} cases\n"
+    
+    elif query_info['collection'] == 'literacy':
+        rates = [item.get('literacy_rate', 0) for item in data if item.get('literacy_rate')]
+        if rates:
+            avg_rate = sum(rates) / len(rates)
+            max_rate = max(rates)
+            min_rate = min(rates)
+            
+            response += f"For **{states_str}**"
+            if query_info['years']:
+                response += f" in **{years_str}**"
+            response += f":\n"
+            
+            response += f"• **Average Literacy Rate**: {avg_rate:.1f}%\n"
+            response += f"• **Highest Rate**: {max_rate:.1f}%\n"
+            response += f"• **Lowest Rate**: {min_rate:.1f}%\n"
+            response += f"• **Records Analyzed**: {len(data)}\n"
+    
+    elif query_info['collection'] == 'aqi':
+        aqi_values = [item.get('aqi', 0) for item in data if item.get('aqi')]
+        if aqi_values:
+            avg_aqi = sum(aqi_values) / len(aqi_values)
+            max_aqi = max(aqi_values)
+            min_aqi = min(aqi_values)
+            
+            response += f"For **{states_str}**"
+            if query_info['years']:
+                response += f" in **{years_str}**"
+            response += f":\n"
+            
+            response += f"• **Average AQI**: {avg_aqi:.1f}\n"
+            response += f"• **Highest AQI**: {max_aqi} (Poor)\n"
+            response += f"• **Lowest AQI**: {min_aqi} (Good)\n"
+            response += f"• **Records Analyzed**: {len(data)}\n"
+            
+            # AQI quality assessment
+            if avg_aqi > 150:
+                response += f"\n⚠️ **Air Quality**: Unhealthy - Take precautions when going outdoors"
+            elif avg_aqi > 100:
+                response += f"\n⚠️ **Air Quality**: Moderate - Sensitive individuals should limit outdoor activities"
+            else:
+                response += f"\n✅ **Air Quality**: Good - Safe for outdoor activities"
+    
+    elif query_info['collection'] == 'power_consumption':
+        consumption_values = [item.get('consumption', 0) for item in data if item.get('consumption')]
+        if consumption_values:
+            avg_consumption = sum(consumption_values) / len(consumption_values)
+            max_consumption = max(consumption_values)
+            min_consumption = min(consumption_values)
+            
+            response += f"For **{states_str}**"
+            if query_info['years']:
+                response += f" in **{years_str}**"
+            response += f":\n"
+            
+            response += f"• **Average Consumption**: {avg_consumption:.1f} units\n"
+            response += f"• **Peak Consumption**: {max_consumption}\n"
+            response += f"• **Minimum Consumption**: {min_consumption}\n"
+            response += f"• **Records Analyzed**: {len(data)}\n"
+    
+    response += f"\n💡 **Tip**: Ask me to compare with other states or years for deeper insights!"
+    
+    return response
 async def get_openai_insight(data_sample: List[Dict], query: str) -> Dict[str, Any]:
     """Generate AI insights using OpenAI"""
     try:
