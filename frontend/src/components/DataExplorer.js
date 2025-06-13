@@ -412,43 +412,6 @@ const DataExplorer = () => {
               </div>
             )}
 
-            {/* Sorting Options */}
-            {metadata && metadata.available_fields.length > 0 && (
-              <div className="bento-card">
-                <h3 className="text-lg font-semibold mb-4">Sort Options</h3>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Sort By</label>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="w-full bg-slate-700/50 border border-slate-600 rounded px-3 py-2 text-sm"
-                    >
-                      <option value="">-- Select Field --</option>
-                      {metadata.available_fields.map((field) => (
-                        <option key={field} value={field}>
-                          {field.replace('_', ' ').toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Order</label>
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value)}
-                      className="w-full bg-slate-700/50 border border-slate-600 rounded px-3 py-2 text-sm"
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Action Buttons */}
             <div className="bento-card">
               <div className="space-y-3">
