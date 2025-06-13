@@ -155,7 +155,7 @@ const ChatPopup = ({ onClose }) => {
 
           {/* Botpress Chat Widget */}
           {showIframe && (
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full overflow-hidden">
               <iframe
                 ref={iframeRef}
                 src={`https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/13/11/20250613110123-M8F9HM2R.json`}
@@ -172,23 +172,14 @@ const ChatPopup = ({ onClose }) => {
                 allow="microphone; camera"
               />
               
-              {/* CSS Override for Botpress Branding */}
-              <style jsx>{`
-                iframe {
-                  position: relative;
-                }
-                iframe::after {
-                  content: '';
-                  position: absolute;
-                  bottom: 0;
-                  left: 0;
-                  right: 0;
-                  height: 40px;
-                  background: linear-gradient(to bottom, transparent, #0f172a);
-                  pointer-events: none;
-                  z-index: 10;
-                }
-              `}</style>
+              {/* Overlay to hide any potential branding at the bottom */}
+              <div 
+                className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none z-10"
+                style={{ borderRadius: '0 0 1rem 1rem' }}
+              />
+              
+              {/* Side overlays to ensure no branding leaks through */}
+              <div className="absolute bottom-0 left-0 w-full h-8 bg-slate-900 pointer-events-none z-10" style={{ borderRadius: '0 0 1rem 1rem' }} />
             </div>
           )}
         </div>
