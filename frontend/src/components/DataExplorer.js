@@ -433,6 +433,18 @@ const DataExplorer = () => {
                   </label>
                 </div>
                 
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showYearSeparately}
+                      onChange={(e) => setShowYearSeparately(e.target.checked)}
+                      className="mr-2 rounded"
+                    />
+                    <span className="text-sm">Separate by Years</span>
+                  </label>
+                </div>
+                
                 <button
                   onClick={fetchFilteredData}
                   disabled={isFiltering}
