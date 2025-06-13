@@ -29,61 +29,6 @@ const ChatPopup = ({ onClose }) => {
     }
   }, [showIframe]);
 
-  // Custom CSS to hide Botpress branding
-  const hideBotpressBranding = `
-    <style>
-      /* Hide Botpress branding and loading */
-      [class*="poweredBy"], 
-      [class*="powered-by"],
-      [id*="poweredBy"],
-      [id*="powered-by"],
-      .bpw-powered-by,
-      .bpw-branding,
-      .bp-branding,
-      .botpress-branding,
-      .poweredBy,
-      .powered-by,
-      [data-testid*="powered"],
-      [aria-label*="Powered by"],
-      [title*="Powered by"],
-      .bpw-layout-loading,
-      .bpw-loading,
-      .bp-loading,
-      .loading-animation,
-      .spinner,
-      .loader {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        height: 0 !important;
-        width: 0 !important;
-        overflow: hidden !important;
-      }
-      
-      /* Custom styling for chat */
-      body {
-        background: transparent !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      
-      .bpw-layout {
-        background: transparent !important;
-        border: none !important;
-      }
-      
-      .bpw-header {
-        display: none !important;
-      }
-      
-      /* Hide any loading states */
-      [class*="loading"],
-      [id*="loading"] {
-        display: none !important;
-      }
-    </style>
-  `;
-
   return (
     <motion.div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
