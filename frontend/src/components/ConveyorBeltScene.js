@@ -378,52 +378,92 @@ const EnergyScreen = ({ onClick, onHover, isHovered }) => {
   );
 };
 
-// Conveyor belt component
+// Enhanced conveyor belt component
 const ConveyorBelt = () => {
   const beltRef = useRef();
+  const [isVisible, setIsVisible] = useState(true);
   
-  useFrame(() => {
-    if (beltRef.current) {
-      // Animate belt texture
-      beltRef.current.material.map.offset.z += 0.02;
+  useFrame((state) => {
+    if (beltRef.current && isVisible) {
+      // Animate belt texture to show movement
+      beltRef.current.material.map.offset.z += 0.015;
+      
+      // Add subtle belt bounce
+      beltRef.current.position.y = -1 + Math.sin(state.clock.elapsedTime * 0.5) * 0.01;
     }
   });
   
   const beltTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 512;
+    canvas.height = 512;
     const ctx = canvas.getContext('2d');
     
-    // Create metallic belt pattern
-    const gradient = ctx.createLinearGradient(0, 0, 256, 0);
-    gradient.addColorStop(0, '#2d3748');
-    gradient.addColorStop(0.5, '#4a5568');
-    gradient.addColorStop(1, '#2d3748');
+    // Create enhanced metallic belt pattern
+    const gradient = ctx.createLinearGradient(0, 0, 512, 0);
+    gradient.addColorStop(0, '#1a202c');
+    gradient.addColorStop(0.3, '#4a5568');
+    gradient.addColorStop(0.5, '#2d3748');
+    gradient.addColorStop(0.7, '#4a5568');
+    gradient.addColorStop(1, '#1a202c');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillRect(0, 0, 512, 512);
     
-    // Add rivets
-    ctx.fillStyle = '#1a202c';
-    for (let i = 0; i < 256; i += 32) {
-      ctx.fillRect(i - 2, 125, 4, 6);
+    // Add metallic rivets and details
+    ctx.fillStyle = '#0f1419';
+    for (let i = 0; i < 512; i += 48) {
+      ctx.fillRect(i - 3, 250, 6, 12);
+      ctx.fillRect(i - 2, 248, 4, 16);
+    }
+    
+    // Add wear patterns
+    ctx.strokeStyle = '#2d3748';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 512; i += 16) {
+      ctx.beginPath();
+      ctx.moveTo(i, 200);
+      ctx.lineTo(i, 312);
+      ctx.stroke();
     }
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 10);
+    texture.repeat.set(1, 8);
     return texture;
   }, []);
   
   return (
-    <Plane ref={beltRef} args={[30, 4]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
-      <meshStandardMaterial
-        map={beltTexture}
-        metalness={0.8}
-        roughness={0.3}
-      />
-    </Plane>
+    <group>
+      {/* Main belt surface */}
+      <Plane ref={beltRef} args={[30, 4]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
+        <meshStandardMaterial
+          map={beltTexture}
+          metalness={0.9}
+          roughness={0.3}
+          normalScale={[0.5, 0.5]}
+        />
+      </Plane>
+      
+      {/* Belt supports */}
+      {Array.from({ length: 6 }, (_, i) => (
+        <Box 
+          key={i} 
+          args={[0.3, 0.8, 0.3]} 
+          position={[-12 + i * 5, -1.5, 0]}
+        >
+          <meshStandardMaterial
+            color="#1a202c"
+            metalness={0.8}
+            roughness={0.4}
+          />
+        </Box>
+      ))}
+      
+      {/* Belt edges */}
+      <Box args={[30, 0.1, 0.1]} position={[0, -0.9, 2]} />
+      <Box args={[30, 0.1, 0.1]} position={[0, -0.9, -2]} />
+    </group>
   );
 };
 
