@@ -467,28 +467,36 @@ const ConveyorBelt = () => {
   );
 };
 
-// Main scene component
+// Enhanced main scene component with performance optimizations
 const Scene = ({ onEnergyScreenClick }) => {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const [cubes, setCubes] = useState([]);
   const [isEnergyScreenHovered, setIsEnergyScreenHovered] = useState(false);
   
   useEffect(() => {
-    // Position camera for diagonal overhead view
-    camera.position.set(8, 6, 10);
-    camera.lookAt(0, 0, 0);
+    // Performance optimizations
+    gl.shadowMap.enabled = true;
+    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 1.2;
     
-    // Initialize cubes
-    const initialCubes = Array.from({ length: 8 }, (_, i) => ({
+    // Position camera for optimal cinematic view
+    camera.position.set(12, 8, 12);
+    camera.lookAt(0, 0, 0);
+    camera.fov = 50;
+    camera.updateProjectionMatrix();
+    
+    // Initialize cubes with staggered positions
+    const initialCubes = Array.from({ length: 10 }, (_, i) => ({
       id: i,
-      position: [0, 0, -15 + i * 4],
+      position: [0, 0, -15 + i * 3],
       isTransformed: false,
     }));
     setCubes(initialCubes);
-  }, [camera]);
+  }, [camera, gl]);
   
   const handleTransform = () => {
-    // Transformation handled by individual cubes
+    // Transformation effects handled by individual cubes
   };
   
   const handleEnergyScreenHover = () => {
@@ -497,25 +505,62 @@ const Scene = ({ onEnergyScreenClick }) => {
 
   return (
     <group>
-      {/* Environment and lighting */}
-      <Environment preset="night" />
-      <ambientLight intensity={0.2} />
-      <directionalLight position={[10, 10, 5]} intensity={0.5} color="#ffffff" />
-      <pointLight position={[0, 5, 0]} intensity={0.8} color="#0066ff" />
+      {/* Enhanced environment and lighting */}
+      <Environment preset="night" background={false} />
       
-      {/* Floor with reflections */}
-      <Plane args={[50, 50]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.1, 0]}>
+      {/* Key lighting setup for cinematic effect */}
+      <ambientLight intensity={0.15} color="#1a1a2e" />
+      <directionalLight 
+        position={[15, 12, 8]} 
+        intensity={0.6} 
+        color="#ffffff"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-far={50}
+        shadow-camera-left={-20}
+        shadow-camera-right={20}
+        shadow-camera-top={20}
+        shadow-camera-bottom={-20}
+      />
+      
+      {/* Energy screen lighting */}
+      <pointLight 
+        position={[0, 3, 0]} 
+        intensity={1.2} 
+        color="#0088ff"
+        distance={15}
+        decay={1}
+      />
+      
+      {/* Rim lighting for atmosphere */}
+      <pointLight 
+        position={[-10, 5, -10]} 
+        intensity={0.4} 
+        color="#4f46e5"
+        distance={20}
+        decay={2}
+      />
+      
+      {/* Floor with enhanced reflections */}
+      <Plane 
+        args={[60, 60]} 
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, -1.2, 0]}
+        receiveShadow
+      >
         <meshStandardMaterial
-          color="#1a202c"
-          metalness={0.9}
-          roughness={0.1}
+          color="#0f0f23"
+          metalness={0.95}
+          roughness={0.05}
+          envMapIntensity={1}
         />
       </Plane>
       
-      {/* Conveyor belt */}
+      {/* Enhanced conveyor belt */}
       <ConveyorBelt />
       
-      {/* Moving cubes */}
+      {/* Moving cubes with shadows */}
       {cubes.map((cube, index) => (
         <MovingCube
           key={cube.id}
@@ -532,6 +577,9 @@ const Scene = ({ onEnergyScreenClick }) => {
         onHover={handleEnergyScreenHover}
         isHovered={isEnergyScreenHovered}
       />
+      
+      {/* Atmospheric fog effect */}
+      <fog attach="fog" args={['#0a0a1a', 20, 60]} />
     </group>
   );
 };
