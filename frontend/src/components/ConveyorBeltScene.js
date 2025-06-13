@@ -54,34 +54,46 @@ const createSparkSound = () => {
 };
 
 // Individual cube component
-const MovingCube = ({ position, isTransformed, transformProgress, onTransform }) => {
+const MovingCube = ({ position, isTransformed, transformProgress, onTransform, cubeIndex }) => {
   const meshRef = useRef();
   const [hasTransformed, setHasTransformed] = useState(false);
+  const [transformationPhase, setTransformationPhase] = useState(0);
   
   useFrame((state) => {
     if (meshRef.current) {
       // Move along the conveyor belt
-      meshRef.current.position.z += 0.02;
+      meshRef.current.position.z += 0.015; // Slightly slower for better observation
       
       // Reset position when cube goes off screen
       if (meshRef.current.position.z > 15) {
         meshRef.current.position.z = -15;
         setHasTransformed(false);
+        setTransformationPhase(0);
       }
       
       // Check for transformation at the energy screen
       if (meshRef.current.position.z > -0.5 && meshRef.current.position.z < 0.5 && !hasTransformed) {
         setHasTransformed(true);
+        setTransformationPhase(1);
         onTransform();
-        createSparkSound();
+        // Delayed sound effect for variety
+        setTimeout(() => createSparkSound(), cubeIndex * 100);
       }
       
       // Apply transformation effects
       if (hasTransformed) {
-        // Add subtle floating motion
-        meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
-        // Add rotation for robot cubes
-        meshRef.current.rotation.y += 0.01;
+        // Smooth floating motion for AI robots
+        const floatOffset = Math.sin(state.clock.elapsedTime * 3 + cubeIndex) * 0.03;
+        meshRef.current.position.y = position[1] + floatOffset;
+        
+        // Gentle rotation for robot cubes
+        meshRef.current.rotation.y += 0.008;
+        meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 2) * 0.05;
+        
+        // Color transition effect
+        if (transformationPhase < 2) {
+          setTransformationPhase(prev => Math.min(prev + 0.02, 2));
+        }
       }
     }
   });
@@ -90,11 +102,14 @@ const MovingCube = ({ position, isTransformed, transformProgress, onTransform })
     <group ref={meshRef} position={position}>
       <Box args={[0.8, 0.8, 0.8]}>
         <meshStandardMaterial
-          color={hasTransformed ? '#4f46e5' : '#6b7280'}
-          metalness={0.8}
-          roughness={0.2}
+          color={hasTransformed ? 
+            `hsl(${240 + Math.sin(transformationPhase * Math.PI) * 30}, 70%, ${50 + transformationPhase * 10}%)` : 
+            '#6b7280'
+          }
+          metalness={0.9}
+          roughness={hasTransformed ? 0.1 : 0.3}
           emissive={hasTransformed ? '#1e1b4b' : '#000000'}
-          emissiveIntensity={0.2}
+          emissiveIntensity={hasTransformed ? 0.2 + Math.sin(transformationPhase * Math.PI) * 0.1 : 0}
         />
       </Box>
       
@@ -102,24 +117,51 @@ const MovingCube = ({ position, isTransformed, transformProgress, onTransform })
       {hasTransformed && (
         <group>
           {/* Glowing eyes */}
-          <Sphere args={[0.05]} position={[-0.2, 0.2, 0.4]}>
-            <meshBasicMaterial color="#00ffff" />
+          <Sphere args={[0.06]} position={[-0.2, 0.2, 0.4]}>
+            <meshBasicMaterial 
+              color="#00ffff" 
+              emissive="#00ffff"
+              emissiveIntensity={0.8 + Math.sin(transformationPhase * Math.PI * 4) * 0.2}
+            />
           </Sphere>
-          <Sphere args={[0.05]} position={[0.2, 0.2, 0.4]}>
-            <meshBasicMaterial color="#00ffff" />
+          <Sphere args={[0.06]} position={[0.2, 0.2, 0.4]}>
+            <meshBasicMaterial 
+              color="#00ffff" 
+              emissive="#00ffff"
+              emissiveIntensity={0.8 + Math.sin(transformationPhase * Math.PI * 4) * 0.2}
+            />
           </Sphere>
           
-          {/* Antennas */}
-          <Box args={[0.02, 0.6, 0.02]} position={[-0.3, 0.7, 0]}>
-            <meshStandardMaterial color="#ffffff" emissive="#4f46e5" emissiveIntensity={0.5} />
+          {/* Enhanced antennas with energy flow */}
+          <Box args={[0.03, 0.6, 0.03]} position={[-0.3, 0.7, 0]}>
+            <meshStandardMaterial 
+              color="#ffffff" 
+              emissive="#4f46e5" 
+              emissiveIntensity={0.6 + Math.sin(transformationPhase * Math.PI * 6) * 0.3} 
+            />
           </Box>
-          <Box args={[0.02, 0.6, 0.02]} position={[0.3, 0.7, 0]}>
-            <meshStandardMaterial color="#ffffff" emissive="#4f46e5" emissiveIntensity={0.5} />
+          <Box args={[0.03, 0.6, 0.03]} position={[0.3, 0.7, 0]}>
+            <meshStandardMaterial 
+              color="#ffffff" 
+              emissive="#4f46e5" 
+              emissiveIntensity={0.6 + Math.sin(transformationPhase * Math.PI * 6) * 0.3} 
+            />
           </Box>
           
-          {/* Electric sparks */}
-          <ElectricSparks position={[-0.3, 1, 0]} />
-          <ElectricSparks position={[0.3, 1, 0]} />
+          {/* Enhanced electric sparks with animation */}
+          <ElectricSparks position={[-0.3, 1, 0]} phase={transformationPhase} />
+          <ElectricSparks position={[0.3, 1, 0]} phase={transformationPhase} />
+          
+          {/* Energy core in center */}
+          <Sphere args={[0.15]} position={[0, 0, 0]}>
+            <meshBasicMaterial 
+              color="#4f46e5" 
+              transparent 
+              opacity={0.6}
+              emissive="#4f46e5"
+              emissiveIntensity={0.4 + Math.sin(transformationPhase * Math.PI * 8) * 0.2}
+            />
+          </Sphere>
         </group>
       )}
     </group>
