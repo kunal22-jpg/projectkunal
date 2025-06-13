@@ -1,115 +1,74 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Box, Sphere, Plane, Text, Environment, MeshTransmissionMaterial } from '@react-three/drei';
+import { Box, Sphere, Plane, Text, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
 
-// Enhanced sound effects
+// Simple sound effect for transformation
 const createSparkSound = () => {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Create multiple oscillators for richer sound
-    const oscillator1 = audioContext.createOscillator();
-    const oscillator2 = audioContext.createOscillator();
-    const oscillator3 = audioContext.createOscillator();
+    const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
     
-    // Mix the oscillators
-    oscillator1.connect(gainNode);
-    oscillator2.connect(gainNode);
-    oscillator3.connect(gainNode);
+    oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Electric spark characteristics
-    oscillator1.type = 'sawtooth';
-    oscillator2.type = 'square';
-    oscillator3.type = 'triangle';
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
     
-    // Different frequencies for harmonic richness
-    oscillator1.frequency.setValueAtTime(1200, audioContext.currentTime);
-    oscillator1.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.08);
+    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
     
-    oscillator2.frequency.setValueAtTime(800, audioContext.currentTime);
-    oscillator2.frequency.exponentialRampToValueAtTime(150, audioContext.currentTime + 0.1);
-    
-    oscillator3.frequency.setValueAtTime(2400, audioContext.currentTime);
-    oscillator3.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.06);
-    
-    // Subtle volume for non-intrusive effect
-    gainNode.gain.setValueAtTime(0.03, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
-    
-    oscillator1.start(audioContext.currentTime);
-    oscillator2.start(audioContext.currentTime + 0.01);
-    oscillator3.start(audioContext.currentTime + 0.005);
-    
-    oscillator1.stop(audioContext.currentTime + 0.12);
-    oscillator2.stop(audioContext.currentTime + 0.13);
-    oscillator3.stop(audioContext.currentTime + 0.1);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
   } catch (error) {
-    // Fail silently if audio context is not available
     console.log('Audio not available');
   }
 };
 
 // Individual cube component
-const MovingCube = ({ position, isTransformed, transformProgress, onTransform, cubeIndex }) => {
+const MovingCube = ({ position, cubeIndex }) => {
   const meshRef = useRef();
   const [hasTransformed, setHasTransformed] = useState(false);
-  const [transformationPhase, setTransformationPhase] = useState(0);
   
   useFrame((state) => {
     if (meshRef.current) {
       // Move along the conveyor belt
-      meshRef.current.position.z += 0.015; // Slightly slower for better observation
+      meshRef.current.position.z += 0.02;
       
       // Reset position when cube goes off screen
       if (meshRef.current.position.z > 15) {
         meshRef.current.position.z = -15;
         setHasTransformed(false);
-        setTransformationPhase(0);
       }
       
       // Check for transformation at the energy screen
       if (meshRef.current.position.z > -0.5 && meshRef.current.position.z < 0.5 && !hasTransformed) {
         setHasTransformed(true);
-        setTransformationPhase(1);
-        onTransform();
-        // Delayed sound effect for variety
-        setTimeout(() => createSparkSound(), cubeIndex * 100);
+        createSparkSound();
       }
       
       // Apply transformation effects
       if (hasTransformed) {
-        // Smooth floating motion for AI robots
-        const floatOffset = Math.sin(state.clock.elapsedTime * 3 + cubeIndex) * 0.03;
-        meshRef.current.position.y = position[1] + floatOffset;
-        
-        // Gentle rotation for robot cubes
-        meshRef.current.rotation.y += 0.008;
-        meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 2) * 0.05;
-        
-        // Color transition effect
-        if (transformationPhase < 2) {
-          setTransformationPhase(prev => Math.min(prev + 0.02, 2));
-        }
+        // Add floating motion for robot cubes
+        meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 3 + cubeIndex) * 0.03;
+        // Add rotation for robot cubes
+        meshRef.current.rotation.y += 0.01;
       }
     }
   });
 
   return (
     <group ref={meshRef} position={position}>
-      <Box args={[0.8, 0.8, 0.8]}>
+      <Box args={[0.8, 0.8, 0.8]} castShadow receiveShadow>
         <meshStandardMaterial
-          color={hasTransformed ? 
-            `hsl(${240 + Math.sin(transformationPhase * Math.PI) * 30}, 70%, ${50 + transformationPhase * 10}%)` : 
-            '#6b7280'
-          }
-          metalness={0.9}
-          roughness={hasTransformed ? 0.1 : 0.3}
+          color={hasTransformed ? '#4f46e5' : '#6b7280'}
+          metalness={0.8}
+          roughness={hasTransformed ? 0.2 : 0.4}
           emissive={hasTransformed ? '#1e1b4b' : '#000000'}
-          emissiveIntensity={hasTransformed ? 0.2 + Math.sin(transformationPhase * Math.PI) * 0.1 : 0}
+          emissiveIntensity={hasTransformed ? 0.3 : 0}
         />
       </Box>
       
@@ -117,86 +76,39 @@ const MovingCube = ({ position, isTransformed, transformProgress, onTransform, c
       {hasTransformed && (
         <group>
           {/* Glowing eyes */}
-          <Sphere args={[0.06]} position={[-0.2, 0.2, 0.4]}>
-            <meshBasicMaterial 
-              color="#00ffff" 
-              emissive="#00ffff"
-              emissiveIntensity={0.8 + Math.sin(transformationPhase * Math.PI * 4) * 0.2}
-            />
+          <Sphere args={[0.05]} position={[-0.2, 0.2, 0.4]}>
+            <meshBasicMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
           </Sphere>
-          <Sphere args={[0.06]} position={[0.2, 0.2, 0.4]}>
-            <meshBasicMaterial 
-              color="#00ffff" 
-              emissive="#00ffff"
-              emissiveIntensity={0.8 + Math.sin(transformationPhase * Math.PI * 4) * 0.2}
-            />
+          <Sphere args={[0.05]} position={[0.2, 0.2, 0.4]}>
+            <meshBasicMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
           </Sphere>
           
-          {/* Enhanced antennas with energy flow */}
-          <Box args={[0.03, 0.6, 0.03]} position={[-0.3, 0.7, 0]}>
-            <meshStandardMaterial 
-              color="#ffffff" 
-              emissive="#4f46e5" 
-              emissiveIntensity={0.6 + Math.sin(transformationPhase * Math.PI * 6) * 0.3} 
-            />
+          {/* Antennas */}
+          <Box args={[0.02, 0.6, 0.02]} position={[-0.3, 0.7, 0]}>
+            <meshStandardMaterial color="#ffffff" emissive="#4f46e5" emissiveIntensity={0.8} />
           </Box>
-          <Box args={[0.03, 0.6, 0.03]} position={[0.3, 0.7, 0]}>
-            <meshStandardMaterial 
-              color="#ffffff" 
-              emissive="#4f46e5" 
-              emissiveIntensity={0.6 + Math.sin(transformationPhase * Math.PI * 6) * 0.3} 
-            />
+          <Box args={[0.02, 0.6, 0.02]} position={[0.3, 0.7, 0]}>
+            <meshStandardMaterial color="#ffffff" emissive="#4f46e5" emissiveIntensity={0.8} />
           </Box>
           
-          {/* Enhanced electric sparks with animation */}
-          <ElectricSparks position={[-0.3, 1, 0]} phase={transformationPhase} />
-          <ElectricSparks position={[0.3, 1, 0]} phase={transformationPhase} />
-          
-          {/* Energy core in center */}
-          <Sphere args={[0.15]} position={[0, 0, 0]}>
-            <meshBasicMaterial 
-              color="#4f46e5" 
-              transparent 
-              opacity={0.6}
-              emissive="#4f46e5"
-              emissiveIntensity={0.4 + Math.sin(transformationPhase * Math.PI * 8) * 0.2}
-            />
-          </Sphere>
+          {/* Electric sparks */}
+          <ElectricSparks position={[-0.3, 1, 0]} />
+          <ElectricSparks position={[0.3, 1, 0]} />
         </group>
       )}
     </group>
   );
 };
 
-// Enhanced electric sparks component
-const ElectricSparks = ({ position, phase = 1 }) => {
+// Electric sparks component
+const ElectricSparks = ({ position }) => {
   const sparkGroupRef = useRef();
-  const sparks = useMemo(() => 
-    Array.from({ length: 8 }, (_, i) => ({
-      id: i,
-      offset: [
-        (Math.random() - 0.5) * 0.15,
-        Math.random() * 0.15,
-        (Math.random() - 0.5) * 0.15
-      ],
-      delay: i * 0.1,
-      intensity: 0.7 + Math.random() * 0.3
-    })), []
-  );
   
   useFrame((state) => {
     if (sparkGroupRef.current) {
-      // Animate the entire spark group
-      sparkGroupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 4) * 0.2;
-      
-      // Animate individual sparks
       sparkGroupRef.current.children.forEach((spark, i) => {
         if (spark.material) {
-          const sparkData = sparks[i];
-          const time = state.clock.elapsedTime * 12 + sparkData.delay;
-          spark.material.opacity = (0.4 + Math.sin(time) * 0.4) * sparkData.intensity * phase;
-          spark.position.y = sparkData.offset[1] + Math.sin(time * 0.8) * 0.05;
-          spark.scale.setScalar(0.5 + Math.sin(time * 1.5) * 0.3);
+          spark.material.opacity = 0.5 + Math.sin(state.clock.elapsedTime * 8 + i) * 0.3;
         }
       });
     }
@@ -204,300 +116,135 @@ const ElectricSparks = ({ position, phase = 1 }) => {
   
   return (
     <group ref={sparkGroupRef} position={position}>
-      {sparks.map((spark) => (
-        <Sphere key={spark.id} args={[0.01]} position={spark.offset}>
-          <meshBasicMaterial 
-            color="#00ffff" 
-            transparent 
-            opacity={0.8}
-            emissive="#00ffff"
-            emissiveIntensity={1}
-          />
+      {[...Array(6)].map((_, i) => (
+        <Sphere key={i} args={[0.01]} position={[
+          (Math.random() - 0.5) * 0.1,
+          Math.random() * 0.1,
+          (Math.random() - 0.5) * 0.1
+        ]}>
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
         </Sphere>
-      ))}
-      
-      {/* Energy tendrils */}
-      {Array.from({ length: 3 }, (_, i) => (
-        <Box 
-          key={`tendril-${i}`} 
-          args={[0.005, 0.1, 0.005]} 
-          position={[
-            Math.sin(i * Math.PI * 2 / 3) * 0.08,
-            i * 0.03,
-            Math.cos(i * Math.PI * 2 / 3) * 0.08
-          ]}
-        >
-          <meshBasicMaterial 
-            color="#8b5cf6" 
-            transparent 
-            opacity={0.6}
-            emissive="#8b5cf6"
-            emissiveIntensity={0.8}
-          />
-        </Box>
       ))}
     </group>
   );
 };
 
-// Enhanced energy screen component
+// Energy screen component
 const EnergyScreen = ({ onClick, onHover, isHovered }) => {
   const screenRef = useRef();
-  const effectsRef = useRef();
-  const [sparkles, setSparkles] = useState([]);
-  const [energyWaves, setEnergyWaves] = useState([]);
-  
-  useEffect(() => {
-    // Generate sparkle positions
-    const newSparkles = Array.from({ length: 30 }, (_, i) => ({
+  const [sparkles] = useState(() => 
+    Array.from({ length: 20 }, (_, i) => ({
       id: i,
       x: (Math.random() - 0.5) * 3.5,
       y: (Math.random() - 0.5) * 5.5,
       z: (Math.random() - 0.5) * 0.2,
-      speed: 0.5 + Math.random() * 1.5,
-      size: 0.01 + Math.random() * 0.02
-    }));
-    setSparkles(newSparkles);
-    
-    // Generate energy wave positions
-    const newWaves = Array.from({ length: 6 }, (_, i) => ({
-      id: i,
-      y: -2.5 + i * 1,
-      delay: i * 0.3
-    }));
-    setEnergyWaves(newWaves);
-  }, []);
+    }))
+  );
   
   useFrame((state) => {
     if (screenRef.current) {
-      // Dynamic opacity with breathing effect
-      const breathe = Math.sin(state.clock.elapsedTime * 1.5) * 0.1;
-      screenRef.current.material.transmission = 0.85 + breathe;
-      screenRef.current.material.thickness = 0.1 + breathe * 0.05;
-    }
-    
-    if (effectsRef.current) {
-      // Rotate the entire effects group for dynamic movement
-      effectsRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+      screenRef.current.material.opacity = 0.4 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
     }
   });
 
   return (
     <group position={[0, 0, 0]} onClick={onClick} onPointerEnter={onHover} onPointerLeave={onHover}>
-      {/* Main energy screen with enhanced materials */}
+      {/* Main energy screen */}
       <Plane ref={screenRef} args={[4, 6]} rotation={[0, 0, 0]}>
-        <MeshTransmissionMaterial
+        <meshBasicMaterial
           color="#0088ff"
-          thickness={0.1}
-          transmission={0.9}
-          roughness={0.05}
-          clearcoat={1}
-          clearcoatRoughness={0.05}
-          ior={1.4}
           transparent
-          opacity={0.6}
-          distortion={0.1}
-          distortionScale={0.5}
-          temporalDistortion={0.1}
+          opacity={0.5}
         />
       </Plane>
       
-      {/* Enhanced visual effects */}
-      <group ref={effectsRef}>
-        {/* Animated energy sparkles */}
-        {sparkles.map((sparkle) => (
-          <Sphere key={sparkle.id} args={[sparkle.size]} position={[sparkle.x, sparkle.y, sparkle.z]}>
-            <meshBasicMaterial 
-              color="#00ddff" 
-              transparent 
-              opacity={0.9}
-              emissive="#00ddff"
-              emissiveIntensity={1.2}
-            />
-          </Sphere>
-        ))}
-        
-        {/* Flowing energy waves */}
-        {energyWaves.map((wave) => (
-          <Plane 
-            key={wave.id} 
-            args={[3.8, 0.1]} 
-            position={[0, wave.y, 0.05]}
-          >
-            <meshBasicMaterial 
-              color="#4dd2ff" 
-              transparent 
-              opacity={0.4}
-              emissive="#4dd2ff"
-              emissiveIntensity={0.8}
-            />
-          </Plane>
-        ))}
-        
-        {/* Central energy core */}
-        <Sphere args={[0.3]} position={[0, 0, 0]}>
-          <meshBasicMaterial 
-            color="#ffffff" 
-            transparent 
-            opacity={0.3}
-            emissive="#00aaff"
-            emissiveIntensity={1.5}
-          />
+      {/* Energy sparkles */}
+      {sparkles.map((sparkle) => (
+        <Sphere key={sparkle.id} args={[0.02]} position={[sparkle.x, sparkle.y, sparkle.z]}>
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
         </Sphere>
-      </group>
+      ))}
       
-      {/* Interactive hover indicator */}
+      {/* Hover indicator */}
       {isHovered && (
-        <group>
-          <Text
-            position={[0, 3.8, 0.2]}
-            fontSize={0.35}
-            color="#00ffff"
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.02}
-            outlineColor="#000000"
-          >
-            🤖 Click to Chat with AI
-          </Text>
-          
-          {/* Pulsing ring around screen */}
-          <mesh rotation={[0, 0, 0]} position={[0, 0, 0.1]}>
-            <ringGeometry args={[2.2, 2.4, 32]} />
-            <meshBasicMaterial 
-              color="#00ffff" 
-              transparent 
-              opacity={0.6}
-              emissive="#00ffff"
-              emissiveIntensity={0.8}
-            />
-          </mesh>
-        </group>
+        <Text
+          position={[0, 3.5, 0.1]}
+          fontSize={0.3}
+          color="#00ffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          🤖 Click to Chat with AI
+        </Text>
       )}
     </group>
   );
 };
 
-// Enhanced conveyor belt component
+// Conveyor belt component
 const ConveyorBelt = () => {
   const beltRef = useRef();
-  const [isVisible, setIsVisible] = useState(true);
   
-  useFrame((state) => {
-    if (beltRef.current && isVisible) {
-      // Animate belt texture to show movement
-      beltRef.current.material.map.offset.z += 0.015;
-      
-      // Add subtle belt bounce
-      beltRef.current.position.y = -1 + Math.sin(state.clock.elapsedTime * 0.5) * 0.01;
+  useFrame(() => {
+    if (beltRef.current && beltRef.current.material.map) {
+      beltRef.current.material.map.offset.z += 0.02;
     }
   });
   
   const beltTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
-    // Create enhanced metallic belt pattern
-    const gradient = ctx.createLinearGradient(0, 0, 512, 0);
-    gradient.addColorStop(0, '#1a202c');
-    gradient.addColorStop(0.3, '#4a5568');
-    gradient.addColorStop(0.5, '#2d3748');
-    gradient.addColorStop(0.7, '#4a5568');
-    gradient.addColorStop(1, '#1a202c');
+    // Create metallic belt pattern
+    const gradient = ctx.createLinearGradient(0, 0, 256, 0);
+    gradient.addColorStop(0, '#2d3748');
+    gradient.addColorStop(0.5, '#4a5568');
+    gradient.addColorStop(1, '#2d3748');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
     
-    // Add metallic rivets and details
-    ctx.fillStyle = '#0f1419';
-    for (let i = 0; i < 512; i += 48) {
-      ctx.fillRect(i - 3, 250, 6, 12);
-      ctx.fillRect(i - 2, 248, 4, 16);
-    }
-    
-    // Add wear patterns
-    ctx.strokeStyle = '#2d3748';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 512; i += 16) {
-      ctx.beginPath();
-      ctx.moveTo(i, 200);
-      ctx.lineTo(i, 312);
-      ctx.stroke();
+    // Add rivets
+    ctx.fillStyle = '#1a202c';
+    for (let i = 0; i < 256; i += 32) {
+      ctx.fillRect(i - 2, 125, 4, 6);
     }
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 8);
+    texture.repeat.set(1, 10);
     return texture;
   }, []);
   
   return (
-    <group>
-      {/* Main belt surface */}
-      <Plane ref={beltRef} args={[30, 4]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
-        <meshStandardMaterial
-          map={beltTexture}
-          metalness={0.9}
-          roughness={0.3}
-          normalScale={[0.5, 0.5]}
-        />
-      </Plane>
-      
-      {/* Belt supports */}
-      {Array.from({ length: 6 }, (_, i) => (
-        <Box 
-          key={i} 
-          args={[0.3, 0.8, 0.3]} 
-          position={[-12 + i * 5, -1.5, 0]}
-        >
-          <meshStandardMaterial
-            color="#1a202c"
-            metalness={0.8}
-            roughness={0.4}
-          />
-        </Box>
-      ))}
-      
-      {/* Belt edges */}
-      <Box args={[30, 0.1, 0.1]} position={[0, -0.9, 2]} />
-      <Box args={[30, 0.1, 0.1]} position={[0, -0.9, -2]} />
-    </group>
+    <Plane ref={beltRef} args={[30, 4]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+      <meshStandardMaterial
+        map={beltTexture}
+        metalness={0.8}
+        roughness={0.3}
+      />
+    </Plane>
   );
 };
 
-// Enhanced main scene component with performance optimizations
+// Main scene component
 const Scene = ({ onEnergyScreenClick }) => {
-  const { camera, gl } = useThree();
-  const [cubes, setCubes] = useState([]);
+  const { camera } = useThree();
+  const [cubes] = useState(() => 
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      position: [0, 0, -15 + i * 4],
+    }))
+  );
   const [isEnergyScreenHovered, setIsEnergyScreenHovered] = useState(false);
   
   useEffect(() => {
-    // Performance optimizations
-    gl.shadowMap.enabled = true;
-    gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure = 1.2;
-    
-    // Position camera for optimal cinematic view
-    camera.position.set(12, 8, 12);
+    // Position camera for diagonal overhead view
+    camera.position.set(10, 8, 12);
     camera.lookAt(0, 0, 0);
-    camera.fov = 50;
-    camera.updateProjectionMatrix();
-    
-    // Initialize cubes with staggered positions
-    const initialCubes = Array.from({ length: 10 }, (_, i) => ({
-      id: i,
-      position: [0, 0, -15 + i * 3],
-      isTransformed: false,
-    }));
-    setCubes(initialCubes);
-  }, [camera, gl]);
-  
-  const handleTransform = () => {
-    // Transformation effects handled by individual cubes
-  };
+  }, [camera]);
   
   const handleEnergyScreenHover = () => {
     setIsEnergyScreenHovered(!isEnergyScreenHovered);
@@ -505,68 +252,35 @@ const Scene = ({ onEnergyScreenClick }) => {
 
   return (
     <group>
-      {/* Enhanced environment and lighting */}
-      <Environment preset="night" background={false} />
-      
-      {/* Key lighting setup for cinematic effect */}
-      <ambientLight intensity={0.15} color="#1a1a2e" />
+      {/* Lighting */}
+      <ambientLight intensity={0.3} />
       <directionalLight 
-        position={[15, 12, 8]} 
-        intensity={0.6} 
+        position={[10, 10, 5]} 
+        intensity={0.8} 
         color="#ffffff"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={50}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
       />
+      <pointLight position={[0, 5, 0]} intensity={1} color="#0088ff" />
       
-      {/* Energy screen lighting */}
-      <pointLight 
-        position={[0, 3, 0]} 
-        intensity={1.2} 
-        color="#0088ff"
-        distance={15}
-        decay={1}
-      />
-      
-      {/* Rim lighting for atmosphere */}
-      <pointLight 
-        position={[-10, 5, -10]} 
-        intensity={0.4} 
-        color="#4f46e5"
-        distance={20}
-        decay={2}
-      />
-      
-      {/* Floor with enhanced reflections */}
-      <Plane 
-        args={[60, 60]} 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -1.2, 0]}
-        receiveShadow
-      >
+      {/* Floor */}
+      <Plane args={[50, 50]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.1, 0]} receiveShadow>
         <meshStandardMaterial
-          color="#0f0f23"
-          metalness={0.95}
-          roughness={0.05}
-          envMapIntensity={1}
+          color="#1a202c"
+          metalness={0.9}
+          roughness={0.1}
         />
       </Plane>
       
-      {/* Enhanced conveyor belt */}
+      {/* Conveyor belt */}
       <ConveyorBelt />
       
-      {/* Moving cubes with shadows */}
+      {/* Moving cubes */}
       {cubes.map((cube, index) => (
         <MovingCube
           key={cube.id}
           position={cube.position}
-          isTransformed={cube.isTransformed}
-          onTransform={handleTransform}
           cubeIndex={index}
         />
       ))}
@@ -577,9 +291,6 @@ const Scene = ({ onEnergyScreenClick }) => {
         onHover={handleEnergyScreenHover}
         isHovered={isEnergyScreenHovered}
       />
-      
-      {/* Atmospheric fog effect */}
-      <fog attach="fog" args={['#0a0a1a', 20, 60]} />
     </group>
   );
 };
@@ -587,7 +298,7 @@ const Scene = ({ onEnergyScreenClick }) => {
 // Main component
 const ConveyorBeltScene = ({ onChatOpen }) => {
   return (
-    <div className="w-full h-screen bg-gradient-to-b from-slate-900 via-purple-900/10 to-slate-900">
+    <div className="w-full h-screen bg-gradient-to-b from-slate-900 via-purple-900/10 to-slate-900 relative">
       {/* TRACITY Header */}
       <motion.div
         className="absolute top-8 left-1/2 transform -translate-x-1/2 z-10"
@@ -608,22 +319,17 @@ const ConveyorBeltScene = ({ onChatOpen }) => {
         </p>
       </motion.div>
       
-      {/* 3D Scene with performance settings */}
+      {/* 3D Scene */}
       <Canvas 
         shadows
         camera={{ fov: 50, near: 0.1, far: 100 }}
-        gl={{ 
-          antialias: true, 
-          alpha: true,
-          powerPreference: "high-performance"
-        }}
-        performance={{ min: 0.5, max: 1 }}
-        frameloop="demand"
+        gl={{ antialias: true, alpha: true }}
+        style={{ background: 'transparent' }}
       >
         <Scene onEnergyScreenClick={onChatOpen} />
       </Canvas>
       
-      {/* Subtle UI overlay */}
+      {/* Instructions */}
       <motion.div
         className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
         initial={{ opacity: 0, y: 20 }}
