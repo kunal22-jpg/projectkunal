@@ -132,7 +132,7 @@ const DataExplorer = () => {
         crime_types: selectedCrimeTypes.length > 0 ? selectedCrimeTypes : null,
         sort_by: sortBy || null,
         sort_order: sortOrder,
-        limit: showAllStates ? 200 : 100
+        limit: showAllStates ? 1000 : 100
       };
 
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/data/filtered`, {
@@ -150,13 +150,18 @@ const DataExplorer = () => {
           ai_insights: visualizationData?.ai_insights // Keep existing insights
         });
 
-        // Fetch enhanced insights for filtered data
+        // Fetch enhanced insights for filtered data with chart type context
+        const enhancedFilterRequest = {
+          ...filterRequest,
+          chart_type: chartType // Pass selected chart type to AI
+        };
+
         const insightsResponse = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/insights/enhanced`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(filterRequest)
+          body: JSON.stringify(enhancedFilterRequest)
         });
 
         if (insightsResponse.ok) {
